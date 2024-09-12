@@ -64,4 +64,4 @@ create_yolo8_folders(), organize_files(), split_dataset(): Handle organizing fil
 To run the application, execute the main() function, which initializes the QApplication and shows the main window.
 
 # Conclusion
-The Simple Annotation Tool is a comprehensive application for annotating images with bounding boxes. It includes functionalities for loading images, drawing, resizing, rotating, deleting bounding boxes, managing annotations, and preparing datasets for machine learning training. The tool is designed to be user-friendly and efficient for creating annotated datasets.
+The yolo8 Annotation Tool is a comprehensive application for annotating images with bounding boxes. It includes functionalities for loading images, drawing, resizing, rotating, deleting bounding boxes, managing annotations, and preparing datasets for machine learning training. The tool is designed to be user-friendly and efficient for creating annotated datasets.
