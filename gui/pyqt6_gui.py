@@ -49,6 +49,7 @@ class Yolo8AnnotationTool(QMainWindow):
         self.undo_stack = []  # Stack to store undo actions
         self.redo_stack = []  # Stack to store redo actions
         self.image_path = None  # Path of image selected in the display window
+        self.load_images = None  # Path of image selected in the display window
 
         # Create central widget and main layout
         central_widget = QWidget(self)
@@ -183,14 +184,14 @@ class Yolo8AnnotationTool(QMainWindow):
         # Width Control
         self.width_spinbox = QSpinBox(self)
         self.width_spinbox.setRange(1, 10000)  # Define the range as needed
-        self.width_spinbox.setValue(800)  # Default width
+        self.width_spinbox.setValue(640)  # Default width
         self.width_spinbox.valueChanged.connect(self.update_image_settings)
         layout.addRow(QLabel("Width", self), self.width_spinbox)
 
         # Height Control
         self.height_spinbox = QSpinBox(self)
         self.height_spinbox.setRange(1, 10000)  # Define the range as needed
-        self.height_spinbox.setValue(600)  # Default height
+        self.height_spinbox.setValue(640)  # Default height
         self.height_spinbox.valueChanged.connect(self.update_image_settings)
         layout.addRow(QLabel("Height", self), self.height_spinbox)
 
@@ -307,8 +308,8 @@ class Yolo8AnnotationTool(QMainWindow):
 
     def reset_image_settings(self):
         """Reset image settings to default values."""
-        self.width_spinbox.setValue(800)  # Reset width to default
-        self.height_spinbox.setValue(600)  # Reset height to default
+        self.width_spinbox.setValue(640)  # Reset width to default
+        self.height_spinbox.setValue(640)  # Reset height to default
         self.rotation_slider.setValue(0)  # Reset rotation to default
         self.brightness_slider.setValue(0)  # Reset brightness to default
         self.contrast_slider.setValue(0)  # Reset contrast to default
@@ -375,9 +376,9 @@ class Yolo8AnnotationTool(QMainWindow):
         toolbar.addAction(png_converter_action)
 
         # Image Reload
-        png_converter_action = QAction("Images Reload", self)
-        png_converter_action.triggered.connect(self.image_reload)
-        toolbar.addAction(png_converter_action)
+        images_reload_action = QAction("Images Reload", self)
+        images_reload_action.triggered.connect(self.image_reload)
+        toolbar.addAction(images_reload_action)
 
     def image_reload(self):
         """reload images"""
@@ -910,5 +911,7 @@ class Yolo8AnnotationTool(QMainWindow):
                 except IOError:
                     # Not an image file or can't open it
                     self.log(f"Skipping non-image file or unreadable file: {file_path}")
+        self.log(f"==> PNG image files : {output_directory}")
+
 
 
