@@ -567,10 +567,10 @@ class Yolo8AnnotationTool(QMainWindow):
         # Prepare annotations in YOLO format (or another format)
         annotations = []
         for box in self.bounding_boxes:
-            x_norm = box.left() / image_width  # Left edge (mouse click X position)
-            y_norm = box.top() / image_height  # Top edge (mouse click Y position)
-            width_norm = box.width() / image_width
-            height_norm = box.height() / image_height
+            x_norm = ((box.left() + box.width())/2) / image_width  # Left edge (mouse click X position)
+            y_norm = ((box.top() + box.height())/2) / image_height  # Top edge (mouse click Y position)
+            width_norm = (box.width() - box.left()) / image_width
+            height_norm = (box.height() - box.top()) / image_height
             object_class_id = self.annotation_input.text()  # Assuming this returns object class ID
 
             # Append the YOLO formatted data (class, x_center, y_center, width, height)
@@ -645,19 +645,24 @@ class Yolo8AnnotationTool(QMainWindow):
                     class_id, x_norm, y_norm, width_norm, height_norm = map(float, line.strip().split())
 
                     # Scale the normalized values to the actual image size
-                    x = int(x_norm * image_width)
-                    y = int(y_norm * image_height)
-                    width = int(width_norm * image_width)
-                    height = int(height_norm * image_height)
+                    x = float(x_norm) * image_width
+                    y = float(y_norm) * image_height
+                    width = float(width_norm) * image_width
+                    height = float(height_norm) * image_height
+
+                    x = int(x - (width / 2))
+                    y = int(y - (height / 2))
+                    width = int(x + (width / 2))
+                    height = int(y + (height / 2))
                     annotations.append((x, y, width, height))
 
             # Iterate over each bounding box in annotations
             for box in annotations:
                 # Extract the x, y, width, and height from the box
-                x = int(box[0])
-                y = int(box[1])
-                width = int(box[2])
-                height = int(box[3])
+                x = float(box[0])
+                y = float(box[1])
+                width = float(box[2])
+                height = float(box[3])
 
                 # Create a QRect object using the extracted values
                 self.bounding_boxes.append(QRect(x, y, width, height))
@@ -693,16 +698,17 @@ class Yolo8AnnotationTool(QMainWindow):
 
             # Calculate normalized values
             image_width, image_height = self.image_size
-            norm_x = last_box.left() / image_width
-            norm_y = last_box.top() / image_height
-            norm_width = last_box.width() / image_width
-            norm_height = last_box.height() / image_height
+            x_norm = ((last_box.left() + last_box.width()) / 2) / image_width  # Left edge (mouse click X position)
+            y_norm = ((last_box.top() + last_box.height()) / 2) / image_height  # Top edge (mouse click Y position)
+            width_norm = (last_box.width() - last_box.left()) / image_width
+            height_norm = (last_box.height() - last_box.top()) / image_height
+
 
             # Display the normalized values in the annotation bay
-            self.annotation_width_label.setText(f"Width: {norm_width:.4f}")
-            self.annotation_height_label.setText(f"Height: {norm_height:.4f}")
-            self.annotation_x_label.setText(f"X : {norm_x:.4f}")
-            self.annotation_y_label.setText(f"Y : {norm_y:.4f}")
+            self.annotation_width_label.setText(f"Width: {width_norm:.4f}")
+            self.annotation_height_label.setText(f"Height: {height_norm:.4f}")
+            self.annotation_x_label.setText(f"X : {x_norm:.4f}")
+            self.annotation_y_label.setText(f"Y : {y_norm:.4f}")
 
         else:
             self.annotation_width_label.setText("Width: N/A")

@@ -6,12 +6,13 @@
 # Python virtual environment
 venv/
 
-# Python compiled files & pytest cache
+# Python compiled files
 *.pyc
 *.pyo
 *.pytestc
 .cache/
 .idea/
-
+*.png/
+*.txt/
 # Automatically downloaded webdriver
 bin/webdriver/chromedriver.exe
