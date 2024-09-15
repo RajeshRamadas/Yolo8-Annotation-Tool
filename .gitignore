@@ -1,0 +1,18 @@
+# Ignore file for git
+
+# VS Code IDE
+.vscode/
+
+# Python virtual environment
+venv/
+
+# Python compiled files
+*.pyc
+*.pyo
+*.pytestc
+.cache/
+.idea/
+*.png/
+*.txt/
+# Automatically downloaded webdriver
+bin/webdriver/chromedriver.exe
