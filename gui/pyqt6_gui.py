@@ -567,10 +567,24 @@ class Yolo8AnnotationTool(QMainWindow):
         # Prepare annotations in YOLO format (or another format)
         annotations = []
         for box in self.bounding_boxes:
-            x_norm = ((box.left() + box.width())/2) / image_width  # Left edge (mouse click X position)
-            y_norm = ((box.top() + box.height())/2) / image_height  # Top edge (mouse click Y position)
-            width_norm = (box.width() - box.left()) / image_width
-            height_norm = (box.height() - box.top()) / image_height
+
+            width = box.width()
+            height = box.height()
+            x_min = box.left()
+            y_min = box.top()
+            x_max = box.width() + x_min
+            y_max = box.height() + y_min
+
+            center_x = (x_min + x_max) / 2
+            center_y = (y_min + y_max) / 2
+            width = x_max - x_min
+            height = y_max - y_min
+
+            x_norm = center_x / image_width
+            y_norm = center_y / image_width
+            width_norm = width / image_width
+            height_norm = height / image_width
+
             object_class_id = self.annotation_input.text()  # Assuming this returns object class ID
 
             # Append the YOLO formatted data (class, x_center, y_center, width, height)
@@ -652,8 +666,8 @@ class Yolo8AnnotationTool(QMainWindow):
 
                     x = int(x - (width / 2))
                     y = int(y - (height / 2))
-                    width = int(x + (width / 2))
-                    height = int(y + (height / 2))
+                    # width = int(x + (width / 2))
+                    # height = int(y + (height / 2))
                     annotations.append((x, y, width, height))
 
             # Iterate over each bounding box in annotations
@@ -698,11 +712,22 @@ class Yolo8AnnotationTool(QMainWindow):
 
             # Calculate normalized values
             image_width, image_height = self.image_size
-            x_norm = ((last_box.left() + last_box.width()) / 2) / image_width  # Left edge (mouse click X position)
-            y_norm = ((last_box.top() + last_box.height()) / 2) / image_height  # Top edge (mouse click Y position)
-            width_norm = (last_box.width() - last_box.left()) / image_width
-            height_norm = (last_box.height() - last_box.top()) / image_height
+            width = last_box.width()
+            height = last_box.height()
+            x_min = last_box.left()
+            y_min = last_box.top()
+            x_max = last_box.width() + x_min
+            y_max = last_box.height() + y_min
 
+            center_x = (x_min + x_max) / 2
+            center_y = (y_min + y_max) / 2
+            width = x_max - x_min
+            height = y_max - y_min
+
+            x_norm = center_x / image_width
+            y_norm = center_y / image_width
+            width_norm = width / image_width
+            height_norm = height / image_width
 
             # Display the normalized values in the annotation bay
             self.annotation_width_label.setText(f"Width: {width_norm:.4f}")
