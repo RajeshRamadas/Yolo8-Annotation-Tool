@@ -1,67 +1,67 @@
-
 # Yolo8 Annotation Tool
-# Overview
-The Yolo8 Annotation Tool is a PyQt6-based application designed for annotating images with bounding boxes. It allows users to load images, draw, resize, rotate, and delete bounding boxes, and save annotations in various formats. The tool is useful for preparing datasets for yolo8 models, such as object detection.
 
-# Key Components
-Imports:
-Standard libraries: sys, os, shutil, numpy.
-PyQt6 modules for GUI components.
-PIL (Pillow) for image processing.
-Main Window (SimpleAnnotationTool):
+## Project Synopsis
 
-# Inherits from QMainWindow.
-Initializes the main window with a title, size, and layout.
-Contains several sections: File List Bay, Setting Bay, Display Bay, and Annotation Bay.
-File List Bay:
+The **Yolo8 Annotation Tool** is a comprehensive application designed for annotating images with bounding boxes. It is built using Python and leverages the PyQt6 library for the graphical user interface. The tool is intended to facilitate the creation of annotated datasets for machine learning models, particularly for object detection tasks.
 
-Displays a list of image files.
-Allows navigation through images using "Previous" and "Next" buttons.
-Setting Bay:
+## Key Features
 
-Contains controls for adjusting image settings (width, height, rotation, brightness, contrast).
-Display Bay:
+### Image Loading and Display
 
-Displays the currently loaded image.
-Allows drawing, resizing, rotating, and deleting bounding boxes on the image.
-Annotation Bay:
+- **Load Images**: Load images from a folder or a specific image file.
+- **Image Settings**: Apply various settings such as width, height, rotation, brightness, and contrast to the images.
 
-Displays details of the bounding boxes.
-Contains controls for managing annotations (undo, redo, save, load, delete, validate).
-Toolbar:
+### Drawing and Managing Bounding Boxes
 
-Contains actions for loading images, saving images, resetting image settings, and creating dataset folders.
-Image Handling:
+- **Bounding Box Creation**: Draw bounding boxes using mouse events.
+- **Undo/Redo**: Undo and redo actions for bounding box modifications.
 
-Functions for loading, displaying, and updating images.
-Functions for drawing, resizing, rotating, and managing bounding boxes.
-# Annotation Handling:
+### Annotation Management
 
-Functions for saving, loading, deleting, and validating annotations.
-# Dataset Management:
+- **Save/Load Annotations**: Save and load annotations in formats (e.g., txt).
+- **Delete Annotations**: Delete existing annotations.
+- **Validate Annotations**: Ensure the correctness of annotations and all files are annotated
 
-Functions for organizing files and splitting datasets for training.
-Key Functions
-# Image Loading and Display:
+### Dataset Management
 
-load_images_from_folder(): Loads images from a selected folder.
-load_image(): Loads a specific image and updates the display.
-update_image_settings(): Applies settings like width, height, rotation, brightness, and contrast to the image.
-Drawing and Managing Bounding Boxes:
+- **Organize Files**: Organize files and create necessary folders for YOLOv8.
+- **Dataset Splitting**: Split datasets for training and validation purposes.
 
-start_drawing(), update_drawing(), finish_drawing(): Handle mouse events for drawing bounding boxes.
-resize_bounding_box(), rotate_bounding_box(): Handle mouse events for resizing and rotating bounding boxes.
-undo_bounding_box(), redo_bounding_box(): Manage undo and redo actions for bounding boxes.
-delete_bounding_box(): Delete the selected bounding box.
-# Annotation Management:
+## Limitation
 
-save_annotations(), load_annotations(), delete_annotations(), validate_annotations(): Handle saving, loading, deleting, and validating annotations.
-save_annotations_as_xml(), save_annotations_as_json(): Save annotations in XML or JSON format.
-Dataset Management:
+- **Single Category Annotation**: This tool currently supports annotating images with only one category or class per project.
 
-create_yolo8_folders(), organize_files(), split_dataset(): Handle organizing files and splitting datasets for training.
-# Example Usage
-To run the application, execute the main() function, which initializes the QApplication and shows the main window.
+## Installation Instructions
 
-# Conclusion
-The yolo8 Annotation Tool is a comprehensive application for annotating images with bounding boxes. It includes functionalities for loading images, drawing, resizing, rotating, deleting bounding boxes, managing annotations, and preparing datasets for machine learning training. The tool is designed to be user-friendly and efficient for creating annotated datasets.
+### Prerequisites
+
+Before installing the Yolo8 Annotation Tool, make sure you have the following installed on your system:
+
+- **Python 3.7+**: Ensure Python is installed. You can download it from [python.org](https://www.python.org/downloads/).
+- **pip**: Python package manager, usually installed with Python.
+
+### Installation Steps & Execution
+
+1. **Clone the Repository**:
+
+   ```bash
+   git clone hhttps://github.com/RajeshRamadas/Yolo8-Annotation-Tool.git
+   cd yolo8-annotation-tool
+2. **Create and Activate a Virtual Environment (optional but recommended):**
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+
+3. **Install the Required Dependencies:**
+    ```bash
+    cd install_script
+    pip install -r requirements.txt
+
+4. **Run the Application:**
+    ```bash
+    # This will launch the Yolo8 Annotation Tool interface.
+    python main.py
+
+## Conclusion
+The Yolo8 Annotation Tool is designed to be user-friendly and efficient, providing a robust set of features for creating annotated datasets for machine learning training. It simplifies the process of image annotation, making it accessible for both novice and experienced users in the field of computer vision.
