@@ -32,10 +32,10 @@ The **Yolo8 Annotation Tool** is a comprehensive application designed for annota
 - **Single Category Annotation**: This tool currently supports annotating images with only one category or class per project.
 - **Single Format Annotation**: This tool currently supports annotation in a single format compatible with the YOLOv8 model.
 
-## Final format
+## Annotation format
 The YOLOv8 model annotation format typically consists of text files with the same name as the corresponding image file. Each line in the text file represents one object in the image and follows this structure:
 
-- **<class_id> <x_center> <y_center> <width> <height>**
+- **<class_id>** **<x_center>** **<y_center>** **<width>** **<height>**
 
 **Explanation of the Components:**
 
