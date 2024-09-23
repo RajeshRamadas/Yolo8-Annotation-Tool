@@ -30,6 +30,7 @@ The **Yolo8 Annotation Tool** is a comprehensive application designed for annota
 ## Limitation
 
 - **Single Category Annotation**: This tool currently supports annotating images with only one category or class per project.
+- **Single Format Annotation**: This tool currently supports annotation in a single format compatible with the YOLOv8 model.
 
 ## Installation Instructions
 
