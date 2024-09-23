@@ -35,7 +35,7 @@ The **Yolo8 Annotation Tool** is a comprehensive application designed for annota
 ## Annotation format
 The YOLOv8 model annotation format typically consists of text files with the same name as the corresponding image file. Each line in the text file represents one object in the image and follows this structure:
 
-![img.png](image/img.png)
+![img.png](image/doc/img.png)
 
 **Explanation of the Components:**
 
@@ -94,6 +94,9 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
     ```bash
     # This will launch the Yolo8 Annotation Tool interface.
     python main.py
+   
+### Application 
+![img.png](image/doc/app.png)
 
 ## Conclusion
 The Yolo8 Annotation Tool is designed to be user-friendly and efficient, providing a robust set of features for creating annotated datasets for machine learning training. It simplifies the process of image annotation, making it accessible for both novice and experienced users in the field of computer vision.
