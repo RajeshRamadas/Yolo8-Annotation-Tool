@@ -35,19 +35,19 @@ The **Yolo8 Annotation Tool** is a comprehensive application designed for annota
 ## Final format
 The YOLOv8 model annotation format typically consists of text files with the same name as the corresponding image file. Each line in the text file represents one object in the image and follows this structure:
 
-**<class_id> <x_center> <y_center> <width> <height>**
+- **<class_id> <x_center> <y_center> <width> <height>**
 
 **Explanation of the Components:**
 
-  class_id: An integer representing the category of the object.
+  **class_id:** An integer representing the category of the object.
 
-  x_center: The x-coordinate of the bounding box center, normalized to the image width (value between 0 and 1).
+  **x_center:** The x-coordinate of the bounding box center, normalized to the image width (value between 0 and 1).
 
-  y_center: The y-coordinate of the bounding box center, normalized to the image height (value between 0 and 1).
+  **y_center:** The y-coordinate of the bounding box center, normalized to the image height (value between 0 and 1).
 
-  width: The width of the bounding box, normalized to the image width (value between 0 and 1).
+  **width:** The width of the bounding box, normalized to the image width (value between 0 and 1).
 
-  height: The height of the bounding box, normalized to the image height (value between 0 and 1).
+  **height:** The height of the bounding box, normalized to the image height (value between 0 and 1).
   
 **Example:**
 For an image named image1.jpg, the corresponding annotation file would be image1.txt and might contain:
@@ -55,7 +55,7 @@ For an image named image1.jpg, the corresponding annotation file would be image1
 - **0 0.5 0.5 0.2 0.3**
 - **1 0.75 0.25 0.1 0.2**
 
-In this example:
+**In this example:**
 
 The first line represents an object of class 0 with a bounding box centered at (50%, 50%) of the image, with a width of 20% and height of 30%.
 
