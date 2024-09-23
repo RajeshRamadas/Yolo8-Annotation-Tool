@@ -96,6 +96,7 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
     python main.py
    
 ## Application 
+
 ![img.png](image/doc/app.png)
 
 ## Conclusion
