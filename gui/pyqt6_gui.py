@@ -4,6 +4,9 @@ import shutil
 import numpy as np
 import subprocess
 import importlib.util
+import json
+from PIL import Image
+import xml.etree.ElementTree as ET
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -30,9 +33,49 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPixmap, QAction, QIcon, QImage, QPainter, QPen
 from PyQt6.QtCore import Qt, QPoint, QRect
 from PIL import Image, ImageEnhance, ImageQt
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox
+
 
 #custom import
 
+
+class CategoryInputDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Enter Category ID, Name, and Path")
+        self.layout = QVBoxLayout()
+
+        self.id_label = QLabel("Category ID:")
+        self.id_input = QLineEdit()
+        self.layout.addWidget(self.id_label)
+        self.layout.addWidget(self.id_input)
+
+        self.name_label = QLabel("Category Name:")
+        self.name_input = QLineEdit()
+        self.layout.addWidget(self.name_label)
+        self.layout.addWidget(self.name_input)
+
+        self.path_label = QLabel("Path to .txt File:")
+        self.path_input = QLineEdit()
+        self.browse_button = QPushButton("Browse")
+        self.browse_button.clicked.connect(self.browse_file)
+        self.layout.addWidget(self.path_label)
+        self.layout.addWidget(self.path_input)
+        self.layout.addWidget(self.browse_button)
+
+        self.submit_button = QPushButton("Submit")
+        self.submit_button.clicked.connect(self.accept)
+        self.layout.addWidget(self.submit_button)
+
+        self.setLayout(self.layout)
+
+    def browse_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select .txt File", "", "Text Files (*.txt)")
+        if file_path:
+            self.path_input.setText(file_path)
+
+    def get_inputs(self):
+        return self.id_input.text(), self.name_input.text(), self.path_input.text()
 
 class Yolo8AnnotationTool(QMainWindow):
     def __init__(self):
@@ -50,6 +93,7 @@ class Yolo8AnnotationTool(QMainWindow):
         self.redo_stack = []  # Stack to store redo actions
         self.image_path = None  # Path of image selected in the display window
         self.load_images = None  # Path of image selected in the display window
+        self.directory_path = None # save dir for annotation files
 
         # Create central widget and main layout
         central_widget = QWidget(self)
@@ -351,9 +395,9 @@ class Yolo8AnnotationTool(QMainWindow):
         self.addToolBar(toolbar)
 
         # Add Folder Path Button
-        add_folder_action = QAction("Load Images", self)
-        add_folder_action.triggered.connect(self.add_folder)
-        toolbar.addAction(add_folder_action)
+        load_images_action = QAction("Load Images", self)
+        load_images_action.triggered.connect(self.load_images_annotation)
+        toolbar.addAction(load_images_action)
 
         # Save Image Action
         save_image_action = QAction(QIcon("icons/save.png"), "Save Image", self)
@@ -375,6 +419,11 @@ class Yolo8AnnotationTool(QMainWindow):
         png_converter_action.triggered.connect(self.png_converter)
         toolbar.addAction(png_converter_action)
 
+        # New action for converting annotations
+        convert_annotations_action = QAction("VOC/COCO Format", self)
+        convert_annotations_action.triggered.connect(self.show_category_input_dialog)
+        toolbar.addAction(convert_annotations_action)
+
         # Image Reload
         images_reload_action = QAction("Images Reload", self)
         images_reload_action.triggered.connect(self.image_reload)
@@ -392,7 +441,8 @@ class Yolo8AnnotationTool(QMainWindow):
         if folder_path:
             self.convert_all_images_in_directory(folder_path)
 
-    def add_folder(self):
+
+    def load_images_annotation(self):
         """Add a folder containing images."""
         folder_path = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder_path:
@@ -415,6 +465,141 @@ class Yolo8AnnotationTool(QMainWindow):
             self.load_image(self.image_list[self.current_index])
         else:
             self.log("No images found in the selected folder.")
+
+    def show_category_input_dialog(self):
+        dialog = CategoryInputDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            category_id, category_name, txt_file_path = dialog.get_inputs()
+            if not category_id or not category_name or not txt_file_path:
+                QMessageBox.warning(self, "Invalid Input", "All fields are required.")
+                return
+            self.convert_txt_to_coco(category_id, category_name, txt_file_path)
+            self.coco_to_voc()
+
+    def coco_to_voc(self):
+
+        coco_json_path = os.path.join(self.directory_path, 'annotations_coco.json')
+        # Load COCO JSON file
+        with open(coco_json_path, 'r') as f:
+            coco_data = json.load(f)
+
+        # Create a mapping from category_id to category name
+        category_mapping = {category['id']: category['name'] for category in coco_data['categories']}
+
+        # Process each image in the COCO dataset
+        for image in coco_data['images']:
+            image_id = image['id']
+            file_name = image['file_name']
+            width = image['width']
+            height = image['height']
+
+            # Create the XML structure for Pascal VOC
+            annotation = ET.Element("annotation")
+            ET.SubElement(annotation, "filename").text = file_name
+
+            # Add size information
+            size = ET.SubElement(annotation, "size")
+            ET.SubElement(size, "width").text = str(width)
+            ET.SubElement(size, "height").text = str(height)
+            ET.SubElement(size, "depth").text = "3"  # Assuming RGB images
+
+            # Find annotations for the current image
+            annotations = [ann for ann in coco_data['annotations'] if ann['image_id'] == image_id]
+
+            for ann in annotations:
+                category_id = ann['category_id']
+                bbox = ann['bbox']  # COCO format [x_min, y_min, width, height]
+
+                # Convert to VOC format (xmin, ymin, xmax, ymax)
+                x_min = int(bbox[0])
+                y_min = int(bbox[1])
+                x_max = int(bbox[0] + bbox[2])
+                y_max = int(bbox[1] + bbox[3])
+
+                # Create object element in XML
+                obj = ET.SubElement(annotation, "object")
+                ET.SubElement(obj, "name").text = category_mapping[category_id]
+                ET.SubElement(obj, "pose").text = "Unspecified"
+                ET.SubElement(obj, "truncated").text = "0"
+                ET.SubElement(obj, "difficult").text = "0"
+
+                # Create bounding box element
+                bndbox = ET.SubElement(obj, "bndbox")
+                ET.SubElement(bndbox, "xmin").text = str(x_min)
+                ET.SubElement(bndbox, "ymin").text = str(y_min)
+                ET.SubElement(bndbox, "xmax").text = str(x_max)
+                ET.SubElement(bndbox, "ymax").text = str(y_max)
+
+            # Save the XML file
+            xml_file_path = os.path.join(self.directory_path, "annotations_voc.xml")
+            tree = ET.ElementTree(annotation)
+            tree.write(xml_file_path)
+
+            print(f"Converted {file_name} to {xml_file_path} in VOC format.")
+
+    def convert_txt_to_coco(self, category_id, category_name, txt_file_path):
+
+        self.directory_path = os.path.dirname(txt_file_path)
+
+        # Initialize COCO structure
+        coco = {
+            "images": [],
+            "annotations": [],
+            "categories": [{"id": int(category_id), "name": category_name}]
+        }
+
+        annotation_id = 1
+        for txt_file in os.listdir(self.directory_path):
+            if txt_file.endswith('.txt'):
+                txt_file_path = os.path.join(self.directory_path, txt_file)
+                image_id = os.path.splitext(os.path.basename(txt_file_path))[0]
+
+                # Read the corresponding image to get its dimensions
+                image_file_path = os.path.join(self.directory_path, f"{image_id}.png")
+                if not os.path.exists(image_file_path):
+                    self.log(f"Image file {image_file_path} does not exist.")
+                    return
+
+                with Image.open(image_file_path) as img:
+                    width, height = img.size
+
+                # Add image info to COCO
+                coco["images"].append({
+                    "id": image_id,
+                    "file_name": f"{image_id}.png",
+                    "width": width,
+                    "height": height
+                })
+
+                # Read and parse the .txt file
+                with open(txt_file_path, 'r') as file:
+                    for line in file:
+                        parts = line.strip().split()
+                        category_id = int(parts[0]) + 1  # Assuming category IDs start from 0 in YOLO format
+                        x_center = float(parts[1]) * width
+                        y_center = float(parts[2]) * height
+                        bbox_width = float(parts[3]) * width
+                        bbox_height = float(parts[4]) * height
+                        x_min = x_center - bbox_width / 2
+                        y_min = y_center - bbox_height / 2
+
+                        # Add annotation info to COCO
+                        coco["annotations"].append({
+                            "id": annotation_id,
+                            "image_id": image_id,
+                            "category_id": category_id,
+                            "bbox": [x_min, y_min, bbox_width, bbox_height],
+                            "area": bbox_width * bbox_height,
+                            "iscrowd": 0
+                        })
+                        annotation_id += 1
+
+        # Save COCO JSON file
+        coco_output_path = os.path.join(self.directory_path, 'annotations_coco.json')
+        with open(coco_output_path, 'w') as coco_file:
+            json.dump(coco, coco_file, indent=4)
+
+        self.log(f"Converted annotations to COCO format at {coco_output_path}")
 
     def next_image(self):
         """Show the next image in the list."""
