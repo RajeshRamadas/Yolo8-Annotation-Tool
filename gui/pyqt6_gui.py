@@ -477,14 +477,13 @@ class Yolo8AnnotationTool(QMainWindow):
             self.coco_to_voc()
 
     def coco_to_voc(self):
-
-        coco_json_path = os.path.join(self.directory_path, 'annotations_coco.json')
         # Load COCO JSON file
+        coco_json_path = os.path.join(self.directory_path, 'annotations_coco.json')
         with open(coco_json_path, 'r') as f:
             coco_data = json.load(f)
 
         # Create a mapping from category_id to category name
-        category_mapping = {category['id']: category['name'] for category in coco_data['categories']}
+        self.category_mapping = {category['id']: category['name'] for category in coco_data['categories']}
 
         # Process each image in the COCO dataset
         for image in coco_data['images']:
@@ -516,9 +515,20 @@ class Yolo8AnnotationTool(QMainWindow):
                 x_max = int(bbox[0] + bbox[2])
                 y_max = int(bbox[1] + bbox[3])
 
+                # Ensure bounding box coordinates are within the image dimensions
+                x_min = max(0, x_min)
+                y_min = max(0, y_min)
+                x_max = min(width, x_max)
+                y_max = min(height, y_max)
+
                 # Create object element in XML
                 obj = ET.SubElement(annotation, "object")
-                ET.SubElement(obj, "name").text = category_mapping[category_id]
+                if category_id in self.category_mapping:
+                    ET.SubElement(obj, "name").text = self.category_mapping[category_id]
+                else:
+                    print(f"Warning: Category ID {category_id} not found in mapping. Skipping annotation.")
+                    continue
+
                 ET.SubElement(obj, "pose").text = "Unspecified"
                 ET.SubElement(obj, "truncated").text = "0"
                 ET.SubElement(obj, "difficult").text = "0"
@@ -530,8 +540,8 @@ class Yolo8AnnotationTool(QMainWindow):
                 ET.SubElement(bndbox, "xmax").text = str(x_max)
                 ET.SubElement(bndbox, "ymax").text = str(y_max)
 
-            # Save the XML file
-            xml_file_path = os.path.join(self.directory_path, "annotations_voc.xml")
+            # Save the XML file for each image
+            xml_file_path = os.path.join(self.directory_path, f"{os.path.splitext(file_name)[0]}.xml")
             tree = ET.ElementTree(annotation)
             tree.write(xml_file_path)
 
