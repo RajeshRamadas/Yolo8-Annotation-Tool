@@ -38,6 +38,48 @@ from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton
 
 #custom import
 
+class DataSplitterInputDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Enter Test Dataset Ratio")
+        self.layout = QVBoxLayout()
+
+        self.train_label = QLabel("Train:(Example: 0.7)")
+        self.train_input = QLineEdit()
+        self.layout.addWidget(self.train_label)
+        self.layout.addWidget(self.train_input)
+
+        self.val_label = QLabel("Validation:(Example: 0.2)")
+        self.val_input = QLineEdit()
+        self.layout.addWidget(self.val_label)
+        self.layout.addWidget(self.val_input)
+
+        self.test_label = QLabel("Test:(Example: 0.1)")
+        self.test_input = QLineEdit()
+        self.layout.addWidget(self.test_label)
+        self.layout.addWidget(self.test_input)
+
+        self.path_label = QLabel("Path to annotated dataset folder:")
+        self.path_input = QLineEdit()
+        self.browse_button = QPushButton("Browse")
+        self.browse_button.clicked.connect(self.browse_folder)
+        self.layout.addWidget(self.path_label)
+        self.layout.addWidget(self.path_input)
+        self.layout.addWidget(self.browse_button)
+
+        self.submit_button = QPushButton("Submit")
+        self.submit_button.clicked.connect(self.accept)
+        self.layout.addWidget(self.submit_button)
+
+        self.setLayout(self.layout)
+
+    def browse_folder(self):
+        folder_path = QFileDialog.getExistingDirectory(self, "Dataset Spliter location")
+        if folder_path:
+            self.path_input.setText(folder_path)
+
+    def get_inputs(self):
+        return self.train_input.text(), self.val_input.text(), self.test_input.text(), self.path_input.text()
 
 class CategoryInputDialog(QDialog):
     def __init__(self, parent=None):
@@ -45,12 +87,12 @@ class CategoryInputDialog(QDialog):
         self.setWindowTitle("Enter Category ID, Name, and Path")
         self.layout = QVBoxLayout()
 
-        self.id_label = QLabel("Category ID:")
+        self.id_label = QLabel("Annotation ID:")
         self.id_input = QLineEdit()
         self.layout.addWidget(self.id_label)
         self.layout.addWidget(self.id_input)
 
-        self.name_label = QLabel("Category Name:")
+        self.name_label = QLabel("Annotation Name:")
         self.name_input = QLineEdit()
         self.layout.addWidget(self.name_label)
         self.layout.addWidget(self.name_input)
@@ -76,6 +118,7 @@ class CategoryInputDialog(QDialog):
 
     def get_inputs(self):
         return self.id_input.text(), self.name_input.text(), self.path_input.text()
+
 
 class Yolo8AnnotationTool(QMainWindow):
     def __init__(self):
@@ -410,8 +453,8 @@ class Yolo8AnnotationTool(QMainWindow):
         toolbar.addAction(reset_image_action)
 
         # Dataset Spliter Action
-        dataset_spliter_action = QAction("Dataset Splitter", self)
-        dataset_spliter_action.triggered.connect(self.create_yolo8_folders)
+        dataset_spliter_action = QAction("Test Dataset Splitter", self)
+        dataset_spliter_action.triggered.connect(self.show_testing_dataset_input_dialog)
         toolbar.addAction(dataset_spliter_action)
 
         # Image png converter
@@ -465,6 +508,23 @@ class Yolo8AnnotationTool(QMainWindow):
             self.load_image(self.image_list[self.current_index])
         else:
             self.log("No images found in the selected folder.")
+
+    def show_testing_dataset_input_dialog(self):
+        dialog = DataSplitterInputDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            train_ratio, val_ratio, test_ratio, folder_path = dialog.get_inputs()
+            train_ratio = float(train_ratio)
+            val_ratio = float(val_ratio)
+            test_ratio = float(test_ratio)
+            ratio_sum = train_ratio + val_ratio + test_ratio
+            if round(ratio_sum) != 1:
+                QMessageBox.warning(self, "Invalid Test Dataset" , f"{ratio_sum} is not equal to 1.0 \n")
+                return
+
+            if not train_ratio or not val_ratio or not test_ratio or not folder_path:
+                QMessageBox.warning(self, "Invalid Input", "All fields are required.")
+                return
+            self.create_yolo8_folders(folder_path, train_ratio, val_ratio, test_ratio)
 
     def show_category_input_dialog(self):
         dialog = CategoryInputDialog(self)
@@ -940,7 +1000,7 @@ class Yolo8AnnotationTool(QMainWindow):
     def log(self, message):
         self.log_window.append(message)
 
-    def create_yolo8_folders(self):
+    def create_yolo8_folders(self, folder_path, train_ratio, val_ratio, test_ratio):
         """
         Create the necessary folder structure for YOLOv8 training data.
 
@@ -949,7 +1009,7 @@ class Yolo8AnnotationTool(QMainWindow):
         """
         # Define the base path where the dataset folders will be created
         base_folder = 'yolo8_dataset'
-        folder_path = QFileDialog.getExistingDirectory(self, "Dataset Spliter location")
+        # folder_path = QFileDialog.getExistingDirectory(self, "Dataset Spliter location")
         dataset_path = os.path.join(folder_path, base_folder)
 
         # Check for valid path
@@ -961,7 +1021,7 @@ class Yolo8AnnotationTool(QMainWindow):
         if not os.path.exists(dataset_path):
             # Define the folder structure
             self.organize_files(folder_path)
-            self.split_dataset(folder_path)
+            self.split_dataset(folder_path, train_ratio, val_ratio, test_ratio)
             QMessageBox.information(self, "Success", f"Training dataset generated. {folder_path}")
         else:
             QMessageBox.information(self, "Warning", f"Directory already exist: {folder_path}/{base_folder}")
@@ -1086,7 +1146,7 @@ class Yolo8AnnotationTool(QMainWindow):
                 xml_file = file.replace('.png', '.xml')  # Assuming image files are .jpg and label files are .txt
                 if os.path.exists(os.path.join(src_folder, label_file)):
                     shutil.move(os.path.join(src_folder, label_file), os.path.join(dst_folder, label_file))
-                if os.path.exists(os.path.join(src_folder, label_file)):
+                if os.path.exists(os.path.join(src_folder, xml_file)):
                     shutil.move(os.path.join(src_folder, xml_file), os.path.join(dst_folder, xml_file))
 
         # Create destination folders
@@ -1096,8 +1156,8 @@ class Yolo8AnnotationTool(QMainWindow):
 
         # Move txt files to respective folders
         move_files(train_ann_txt, labels_path, os.path.join(labels_path, 'train'))
-        move_files(test_ann_txt, labels_path, os.path.join(labels_path, 'val'))
-        move_files(val_ann_txt, labels_path, os.path.join(labels_path, 'test'))
+        move_files(val_ann_txt, labels_path, os.path.join(labels_path, 'val'))
+        move_files(test_ann_txt, labels_path, os.path.join(labels_path, 'test'))
 
         # Move xml files to respective folders
         move_files(train_xml, labels_path, os.path.join(labels_path, 'train'))
