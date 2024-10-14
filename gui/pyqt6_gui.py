@@ -585,7 +585,8 @@ class Yolo8AnnotationTool(QMainWindow):
                 with open(txt_file_path, 'r') as file:
                     for line in file:
                         parts = line.strip().split()
-                        category_id = int(parts[0]) + 1  # Assuming category IDs start from 0 in YOLO format
+                        # category_id = int(parts[0]) + 1  # Assuming category IDs start from 0 in YOLO format
+                        category_id = int(parts[0])
                         x_center = float(parts[1]) * width
                         y_center = float(parts[2]) * height
                         bbox_width = float(parts[3]) * width
@@ -999,13 +1000,21 @@ class Yolo8AnnotationTool(QMainWindow):
                 if ext.lower() in ['.png']:  # Add or remove extensions as needed
                     # Move image files
                     shutil.move(file_path, os.path.join(target_images_dir, file))
-                    self.log(f"Moved image file: {file}")
+                    self.log(f"Moved image png file: {file}")
                 elif ext.lower() == '.txt':
                     # Move label files
                     shutil.move(file_path, os.path.join(target_labels_dir, file))
-                    self.log(f"Moved label file: {file}")
+                    self.log(f"Moved label xml file: {file}")
+                elif ext.lower() == '.xml':
+                    # Move label files
+                    shutil.move(file_path, os.path.join(target_labels_dir, file))
+                    self.log(f"Moved label xml file: {file}")
+                elif ext.lower() == '.json':
+                    # Move label files
+                    shutil.move(file_path, os.path.join(target_labels_dir, file))
+                    self.log(f"Moved label json file: {file}")
 
-    def split_dataset(self, base_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1):
+    def split_dataset(self, base_path, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2):
         """
         Split dataset into training, validation, and test sets.
 
@@ -1025,8 +1034,9 @@ class Yolo8AnnotationTool(QMainWindow):
         assert os.path.exists(labels_path), f"Labels path {labels_path} does not exist."
 
         # Get list of all images
-        all_ann_txt = [f for f in os.listdir(labels_path) if os.path.isfile(os.path.join(labels_path, f))]
-
+        # all_ann_txt = [f for f in os.listdir(labels_path) if os.path.isfile(os.path.join(labels_path, f))]
+        all_ann_txt = [f for f in os.listdir(labels_path) if
+                       os.path.isfile(os.path.join(labels_path, f)) and f.endswith('.txt')]
         # Shuffle and split
         np.random.shuffle(all_ann_txt)
 
@@ -1038,49 +1048,66 @@ class Yolo8AnnotationTool(QMainWindow):
         val_ann_txt = all_ann_txt[train_end:val_end]
         test_ann_txt = all_ann_txt[val_end:]
 
+        train_xml = []
         train_images = []
         for file in train_ann_txt:
             # Get the base name without extension and add .png
             base_name = os.path.splitext(file)[0]
             png_file = base_name + '.png'
             train_images.append(png_file)
+            xml_file = base_name + '.xml'
+            train_xml.append(xml_file)
 
+        val_xml = []
         val_images = []
         for file in val_ann_txt:
             # Get the base name without extension and add .png
             base_name = os.path.splitext(file)[0]
             png_file = base_name + '.png'
             val_images.append(png_file)
+            xml_file = base_name + '.xml'
+            val_xml.append(xml_file)
 
+        test_xml = []
         test_images = []
         for file in test_ann_txt:
             # Get the base name without extension and add .png
             base_name = os.path.splitext(file)[0]
             png_file = base_name + '.png'
             test_images.append(png_file)
+            xml_file = base_name + '.xml'
+            test_xml.append(xml_file)
 
         # Helper function to move files
         def move_files(file_list, src_folder, dst_folder):
             for file in file_list:
                 shutil.move(os.path.join(src_folder, file), os.path.join(dst_folder, file))
                 label_file = file.replace('.png', '.txt')  # Assuming image files are .jpg and label files are .txt
+                xml_file = file.replace('.png', '.xml')  # Assuming image files are .jpg and label files are .txt
                 if os.path.exists(os.path.join(src_folder, label_file)):
                     shutil.move(os.path.join(src_folder, label_file), os.path.join(dst_folder, label_file))
+                if os.path.exists(os.path.join(src_folder, label_file)):
+                    shutil.move(os.path.join(src_folder, xml_file), os.path.join(dst_folder, xml_file))
 
         # Create destination folders
         for folder in ['train', 'val', 'test']:
             os.makedirs(os.path.join(images_path, folder), exist_ok=True)
             os.makedirs(os.path.join(labels_path, folder), exist_ok=True)
 
-        # Move files to respective folders
+        # Move txt files to respective folders
         move_files(train_ann_txt, labels_path, os.path.join(labels_path, 'train'))
         move_files(test_ann_txt, labels_path, os.path.join(labels_path, 'val'))
         move_files(val_ann_txt, labels_path, os.path.join(labels_path, 'test'))
 
-        # Move files to respective folders
+        # Move xml files to respective folders
+        move_files(train_xml, labels_path, os.path.join(labels_path, 'train'))
+        move_files(val_xml, labels_path, os.path.join(labels_path, 'val'))
+        move_files(test_xml, labels_path, os.path.join(labels_path, 'test'))
+
+        # Move JPG files to respective folders
         move_files(train_images, images_path, os.path.join(images_path, 'train'))
-        move_files(test_images, images_path, os.path.join(images_path, 'val'))
-        move_files(val_images, images_path, os.path.join(images_path, 'test'))
+        move_files(val_images, images_path, os.path.join(images_path, 'val'))
+        move_files(test_images, images_path, os.path.join(images_path, 'test'))
 
     def validate_annotations(self):
         if not hasattr(self, 'image_path') or not self.image_path:
