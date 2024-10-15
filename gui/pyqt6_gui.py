@@ -331,7 +331,7 @@ class Yolo8AnnotationTool(QMainWindow):
         # Annotation Text Input
         self.annotation_input = QLineEdit(self)
         self.annotation_input.setPlaceholderText("Enter annotation class...")
-        self.annotation_text = QLabel("Annotation class:", self)
+        self.annotation_text = QLabel("Annotation ID:", self)
         layout.addWidget(self.annotation_text)
         layout.addRow(QLabel("", self), self.annotation_input)
 
@@ -464,7 +464,7 @@ class Yolo8AnnotationTool(QMainWindow):
         toolbar.addAction(png_converter_action)
 
         # New action for converting annotations
-        convert_annotations_action = QAction("VOC/COCO Format", self)
+        convert_annotations_action = QAction("VOC XML Format", self)
         convert_annotations_action.triggered.connect(self.show_category_input_dialog)
         toolbar.addAction(convert_annotations_action)
 
