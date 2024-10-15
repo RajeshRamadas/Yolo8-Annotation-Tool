@@ -5,6 +5,7 @@ import numpy as np
 import subprocess
 import importlib.util
 import json
+import xmltodict
 from PIL import Image
 import xml.etree.ElementTree as ET
 from PyQt6.QtWidgets import (
@@ -35,27 +36,27 @@ from PyQt6.QtCore import Qt, QPoint, QRect
 from PIL import Image, ImageEnhance, ImageQt
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox
 
-
-#custom import
-
 class DataSplitterInputDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Enter Test Dataset Ratio")
         self.layout = QVBoxLayout()
 
-        self.train_label = QLabel("Train:(Example: 0.7)")
+        self.train_label = QLabel("Train:(Example: 0.6)")
         self.train_input = QLineEdit()
+        self.train_input.setText("0.6")  # Default value
         self.layout.addWidget(self.train_label)
         self.layout.addWidget(self.train_input)
 
         self.val_label = QLabel("Validation:(Example: 0.2)")
         self.val_input = QLineEdit()
+        self.val_input.setText("0.2")  # Default value
         self.layout.addWidget(self.val_label)
         self.layout.addWidget(self.val_input)
 
-        self.test_label = QLabel("Test:(Example: 0.1)")
+        self.test_label = QLabel("Test:(Example: 0.2)")
         self.test_input = QLineEdit()
+        self.test_input.setText("0.2")  # Default value
         self.layout.addWidget(self.test_label)
         self.layout.addWidget(self.test_input)
 
@@ -112,7 +113,7 @@ class CategoryInputDialog(QDialog):
         self.setLayout(self.layout)
 
     def browse_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select .txt File", "", "Text Files (*.txt)")
+        file_path, _ = QFileDialog.getExistingDirectory(self, "Location to yolo annotation format")
         if file_path:
             self.path_input.setText(file_path)
 
@@ -442,20 +443,20 @@ class Yolo8AnnotationTool(QMainWindow):
         load_images_action.triggered.connect(self.load_images_annotation)
         toolbar.addAction(load_images_action)
 
-        # Save Image Action
-        save_image_action = QAction(QIcon("icons/save.png"), "Save Image", self)
-        save_image_action.triggered.connect(self.save_image)
-        toolbar.addAction(save_image_action)
+        # Image Reload
+        images_reload_action = QAction("Image Reload", self)
+        images_reload_action.triggered.connect(self.image_reload)
+        toolbar.addAction(images_reload_action)
 
         # Reset Image Action
         reset_image_action = QAction("Reset Image", self)
         reset_image_action.triggered.connect(self.reset_image_settings)
         toolbar.addAction(reset_image_action)
 
-        # Dataset Spliter Action
-        dataset_spliter_action = QAction("Test Dataset Splitter", self)
-        dataset_spliter_action.triggered.connect(self.show_testing_dataset_input_dialog)
-        toolbar.addAction(dataset_spliter_action)
+        # Save Image Action
+        save_image_action = QAction(QIcon("icons/save.png"), "Save Image", self)
+        save_image_action.triggered.connect(self.save_image)
+        toolbar.addAction(save_image_action)
 
         # Image png converter
         png_converter_action = QAction("PNG Converter", self)
@@ -467,10 +468,16 @@ class Yolo8AnnotationTool(QMainWindow):
         convert_annotations_action.triggered.connect(self.show_category_input_dialog)
         toolbar.addAction(convert_annotations_action)
 
-        # Image Reload
-        images_reload_action = QAction("Images Reload", self)
-        images_reload_action.triggered.connect(self.image_reload)
-        toolbar.addAction(images_reload_action)
+        # Dataset Spliter Action
+        dataset_spliter_action = QAction("Test Dataset Splitter", self)
+        dataset_spliter_action.triggered.connect(self.show_testing_dataset_input_dialog)
+        toolbar.addAction(dataset_spliter_action)
+
+
+
+
+
+
 
     def image_reload(self):
         """reload images"""
@@ -533,144 +540,91 @@ class Yolo8AnnotationTool(QMainWindow):
             if not category_id or not category_name or not txt_file_path:
                 QMessageBox.warning(self, "Invalid Input", "All fields are required.")
                 return
-            self.convert_txt_to_coco(category_id, category_name, txt_file_path)
-            self.coco_to_voc()
+            # Example class mapping for YOLO class IDs to VOC class names
+            class_mapping = {
+                category_id: category_name
+            }
+            self.yolo_to_voc(txt_file_path, class_mapping)
 
-    def coco_to_voc(self):
-        # Load COCO JSON file
-        coco_json_path = os.path.join(self.directory_path, 'annotations_coco.json')
-        with open(coco_json_path, 'r') as f:
-            coco_data = json.load(f)
+    def yolo_to_voc(self, yolo_dir, class_mapping):
+        # Traverse through the folder and identify YOLOv8 files
+        yolo_dir = os.path.dirname(yolo_dir)
+        for root, dirs, files in os.walk(yolo_dir):
+            for file in files:
+                if file.endswith(".txt"):
+                    yolo_file = os.path.join(root, file)
 
-        # Create a mapping from category_id to category name
-        self.category_mapping = {category['id']: category['name'] for category in coco_data['categories']}
+                    # Try to find the image file with possible extensions (.png, .jpg, etc.)
+                    image_file = None
+                    # for ext in [".png", ".jpg", ".jpeg"]:
+                    for ext in [".png"]:
+                        possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
+                        if os.path.exists(possible_image_file):
+                            image_file = possible_image_file
+                            break
 
-        # Process each image in the COCO dataset
-        for image in coco_data['images']:
-            image_id = image['id']
-            file_name = image['file_name']
-            width = image['width']
-            height = image['height']
+                    if image_file is None:
+                        print(f"Image file not found for {yolo_file}")
+                        continue  # Skip if no image is found
 
-            # Create the XML structure for Pascal VOC
-            annotation = ET.Element("annotation")
-            ET.SubElement(annotation, "filename").text = file_name
+                    # Read the corresponding image size
+                    try:
+                        width, height = self.get_image_size(image_file)
+                    except Exception as e:
+                        print(f"Failed to get image size for {image_file}: {e}")
+                        continue  # Skip if unable to read image size
 
-            # Add size information
-            size = ET.SubElement(annotation, "size")
-            ET.SubElement(size, "width").text = str(width)
-            ET.SubElement(size, "height").text = str(height)
-            ET.SubElement(size, "depth").text = "3"  # Assuming RGB images
+                    # Read YOLO annotations
+                    with open(yolo_file, "r") as f:
+                        lines = f.readlines()
 
-            # Find annotations for the current image
-            annotations = [ann for ann in coco_data['annotations'] if ann['image_id'] == image_id]
+                    # Create XML structure
+                    annotation = ET.Element("annotation")
+                    ET.SubElement(annotation, "filename").text = os.path.basename(image_file)
 
-            for ann in annotations:
-                category_id = ann['category_id']
-                bbox = ann['bbox']  # COCO format [x_min, y_min, width, height]
+                    size = ET.SubElement(annotation, "size")
+                    ET.SubElement(size, "width").text = str(width)
+                    ET.SubElement(size, "height").text = str(height)
 
-                # Convert to VOC format (xmin, ymin, xmax, ymax)
-                x_min = int(bbox[0])
-                y_min = int(bbox[1])
-                x_max = int(bbox[0] + bbox[2])
-                y_max = int(bbox[1] + bbox[3])
+                    for line in lines:
+                        data = line.strip().split()
+                        class_id, x_center, y_center, bbox_width, bbox_height = map(float, data)
 
-                # Ensure bounding box coordinates are within the image dimensions
-                x_min = max(0, x_min)
-                y_min = max(0, y_min)
-                x_max = min(width, x_max)
-                y_max = min(height, y_max)
+                        # Convert normalized YOLOv8 coordinates to VOC absolute pixel values
+                        xmin = int((x_center - bbox_width / 2) * width)
+                        ymin = int((y_center - bbox_height / 2) * height)
+                        xmax = int((x_center + bbox_width / 2) * width)
+                        ymax = int((y_center + bbox_height / 2) * height)
 
-                # Create object element in XML
-                obj = ET.SubElement(annotation, "object")
-                if category_id in self.category_mapping:
-                    ET.SubElement(obj, "name").text = self.category_mapping[category_id]
-                else:
-                    print(f"Warning: Category ID {category_id} not found in mapping. Skipping annotation.")
-                    continue
+                        # Get the class name from the class_id using the provided class_mapping
+                        class_name = class_mapping.get(int(class_id), "unknown")
 
-                ET.SubElement(obj, "pose").text = "Unspecified"
-                ET.SubElement(obj, "truncated").text = "0"
-                ET.SubElement(obj, "difficult").text = "0"
+                        obj = ET.SubElement(annotation, "object")
+                        ET.SubElement(obj, "name").text = class_name
 
-                # Create bounding box element
-                bndbox = ET.SubElement(obj, "bndbox")
-                ET.SubElement(bndbox, "xmin").text = str(x_min)
-                ET.SubElement(bndbox, "ymin").text = str(y_min)
-                ET.SubElement(bndbox, "xmax").text = str(x_max)
-                ET.SubElement(bndbox, "ymax").text = str(y_max)
+                        bndbox = ET.SubElement(obj, "bndbox")
+                        ET.SubElement(bndbox, "xmin").text = str(xmin)
+                        ET.SubElement(bndbox, "ymin").text = str(ymin)
+                        ET.SubElement(bndbox, "xmax").text = str(xmax)
+                        ET.SubElement(bndbox, "ymax").text = str(ymax)
 
-            # Save the XML file for each image
-            xml_file_path = os.path.join(self.directory_path, f"{os.path.splitext(file_name)[0]}.xml")
-            tree = ET.ElementTree(annotation)
-            tree.write(xml_file_path)
+                    # Convert the ElementTree to a string
+                    voc_xml = ET.tostring(annotation, encoding="utf-8", method="xml")
 
-            print(f"Converted {file_name} to {xml_file_path} in VOC format.")
+                    # Save the XML to the same directory
+                    voc_file = os.path.join(root, os.path.splitext(file)[0] + ".xml")
+                    with open(voc_file, "wb") as xml_out:
+                        xml_out.write(voc_xml)
 
-    def convert_txt_to_coco(self, category_id, category_name, txt_file_path):
+                    print(f"Converted {yolo_file} to {voc_file}")
 
-        self.directory_path = os.path.dirname(txt_file_path)
+    def get_image_size(self, image_path):
+        try:
+            with Image.open(image_path) as img:
+                return img.size  # (width, height)
+        except Exception as e:
+            raise ValueError(f"Unable to open image: {e}")
 
-        # Initialize COCO structure
-        coco = {
-            "images": [],
-            "annotations": [],
-            "categories": [{"id": int(category_id), "name": category_name}]
-        }
-
-        annotation_id = 1
-        for txt_file in os.listdir(self.directory_path):
-            if txt_file.endswith('.txt'):
-                txt_file_path = os.path.join(self.directory_path, txt_file)
-                image_id = os.path.splitext(os.path.basename(txt_file_path))[0]
-
-                # Read the corresponding image to get its dimensions
-                image_file_path = os.path.join(self.directory_path, f"{image_id}.png")
-                if not os.path.exists(image_file_path):
-                    self.log(f"Image file {image_file_path} does not exist.")
-                    return
-
-                with Image.open(image_file_path) as img:
-                    width, height = img.size
-
-                # Add image info to COCO
-                coco["images"].append({
-                    "id": image_id,
-                    "file_name": f"{image_id}.png",
-                    "width": width,
-                    "height": height
-                })
-
-                # Read and parse the .txt file
-                with open(txt_file_path, 'r') as file:
-                    for line in file:
-                        parts = line.strip().split()
-                        # category_id = int(parts[0]) + 1  # Assuming category IDs start from 0 in YOLO format
-                        category_id = int(parts[0])
-                        x_center = float(parts[1]) * width
-                        y_center = float(parts[2]) * height
-                        bbox_width = float(parts[3]) * width
-                        bbox_height = float(parts[4]) * height
-                        x_min = x_center - bbox_width / 2
-                        y_min = y_center - bbox_height / 2
-
-                        # Add annotation info to COCO
-                        coco["annotations"].append({
-                            "id": annotation_id,
-                            "image_id": image_id,
-                            "category_id": category_id,
-                            "bbox": [x_min, y_min, bbox_width, bbox_height],
-                            "area": bbox_width * bbox_height,
-                            "iscrowd": 0
-                        })
-                        annotation_id += 1
-
-        # Save COCO JSON file
-        coco_output_path = os.path.join(self.directory_path, 'annotations_coco.json')
-        with open(coco_output_path, 'w') as coco_file:
-            json.dump(coco, coco_file, indent=4)
-
-        self.log(f"Converted annotations to COCO format at {coco_output_path}")
 
     def next_image(self):
         """Show the next image in the list."""
@@ -1008,166 +962,169 @@ class Yolo8AnnotationTool(QMainWindow):
         base_path (str): The root directory where the YOLOv8 dataset folders will be created.
         """
         # Define the base path where the dataset folders will be created
-        base_folder = 'yolo8_dataset'
-        # folder_path = QFileDialog.getExistingDirectory(self, "Dataset Spliter location")
-        dataset_path = os.path.join(folder_path, base_folder)
-
-        # Check for valid path
         if not folder_path:
             self.log(f"Invalid Directory : {folder_path}")
             return
 
-        # Check is 'yolo8_dataset' folder already exist
-        if not os.path.exists(dataset_path):
-            # Define the folder structure
-            self.organize_files(folder_path)
-            self.split_dataset(folder_path, train_ratio, val_ratio, test_ratio)
-            QMessageBox.information(self, "Success", f"Training dataset generated. {folder_path}")
-        else:
-            QMessageBox.information(self, "Warning", f"Directory already exist: {folder_path}/{base_folder}")
-            self.log(f"Directory already exist: {folder_path}/{base_folder}")
-            self.log(f"==> Delete: {folder_path}/{base_folder}")
+        self.organize_files(folder_path, train_ratio, val_ratio, test_ratio)
+        QMessageBox.information(self, "Success", f"Training dataset generated. {folder_path}")
 
-    def organize_files(self, source_dir):
+    def organize_files(self, source_dir, train_ratio, val_ratio, test_ratio):
         """
-        Organize files into separate 'images' and 'labels' folders.
+        Organize files into separate 'images' and 'labels' folders for training, validation, and testing.
 
         Parameters:
         source_dir (str): The directory containing mixed image and label files.
-        target_images_dir (str): The directory to move image files to.
-        target_labels_dir (str): The directory to move label files to.
+        train_ratio (float): Proportion of data to use for training.
+        val_ratio (float): Proportion of data to use for validation.
+        test_ratio (float): Proportion of data to use for testing.
         """
-        # Create folder path for Images and labels
-        target_images_dir = os.path.join(source_dir, f"images")
-        target_labels_dir = os.path.join(source_dir, f"labels")
+        base_dataset = "test_dataset"
+        ext_source_dir = os.path.join(source_dir, base_dataset)
 
-        # Ensure the target directories exist
-        os.makedirs(target_images_dir, exist_ok=True)
-        os.makedirs(target_labels_dir, exist_ok=True)
+        # Define dataset splits and create directories
+        dataset_splits = ['train', 'val', 'test']
+        for split in dataset_splits:
+            for folder in ['images', 'labels']:
+                os.makedirs(os.path.join(ext_source_dir, split, folder), exist_ok=True)
 
-        # List all files in the source directory
-        files = os.listdir(source_dir)
+        # Get list of all annotation files
+        all_ann_txt = [f for f in os.listdir(source_dir) if f.endswith('.txt')]
 
-        for file in files:
-            # Construct full file path
-            file_path = os.path.join(source_dir, file)
-
-            if os.path.isfile(file_path):
-                # Determine file extension
-                _, ext = os.path.splitext(file)
-
-                # Check if file is an image or a label
-                if ext.lower() in ['.png']:  # Add or remove extensions as needed
-                    # Move image files
-                    shutil.move(file_path, os.path.join(target_images_dir, file))
-                    self.log(f"Moved image png file: {file}")
-                elif ext.lower() == '.txt':
-                    # Move label files
-                    shutil.move(file_path, os.path.join(target_labels_dir, file))
-                    self.log(f"Moved label xml file: {file}")
-                elif ext.lower() == '.xml':
-                    # Move label files
-                    shutil.move(file_path, os.path.join(target_labels_dir, file))
-                    self.log(f"Moved label xml file: {file}")
-                elif ext.lower() == '.json':
-                    # Move label files
-                    shutil.move(file_path, os.path.join(target_labels_dir, file))
-                    self.log(f"Moved label json file: {file}")
-
-    def split_dataset(self, base_path, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2):
-        """
-        Split dataset into training, validation, and test sets.
-
-        Parameters:
-        base_path (str): The root directory of the dataset.
-        train_ratio (float): Ratio of data used for training.
-        val_ratio (float): Ratio of data used for validation.
-        test_ratio (float): Ratio of data used for testing.
-        """
-
-        # Paths for images and labels
-        images_path = os.path.join(base_path, "images")
-        labels_path = os.path.join(base_path, "labels")
-
-        # Ensure these directories exist
-        assert os.path.exists(images_path), f"Images path {images_path} does not exist."
-        assert os.path.exists(labels_path), f"Labels path {labels_path} does not exist."
-
-        # Get list of all images
-        # all_ann_txt = [f for f in os.listdir(labels_path) if os.path.isfile(os.path.join(labels_path, f))]
-        all_ann_txt = [f for f in os.listdir(labels_path) if
-                       os.path.isfile(os.path.join(labels_path, f)) and f.endswith('.txt')]
-        # Shuffle and split
+        # Shuffle and split the files
         np.random.shuffle(all_ann_txt)
-
         total_ann_txt = len(all_ann_txt)
         train_end = int(train_ratio * total_ann_txt)
         val_end = int((train_ratio + val_ratio) * total_ann_txt)
 
+        # Split annotation files into train, val, and test
         train_ann_txt = all_ann_txt[:train_end]
         val_ann_txt = all_ann_txt[train_end:val_end]
         test_ann_txt = all_ann_txt[val_end:]
 
-        train_xml = []
-        train_images = []
-        for file in train_ann_txt:
-            # Get the base name without extension and add .png
-            base_name = os.path.splitext(file)[0]
-            png_file = base_name + '.png'
-            train_images.append(png_file)
-            xml_file = base_name + '.xml'
-            train_xml.append(xml_file)
+        # Helper function to extract corresponding image and XML files
+        def get_related_files(ann_txt_files, src_dir):
+            images, xml_files = [], []
+            for txt_file in ann_txt_files:
+                base_name = os.path.splitext(txt_file)[0]
+                png_file = base_name + '.png'
+                xml_file = base_name + '.xml'
 
-        val_xml = []
-        val_images = []
-        for file in val_ann_txt:
-            # Get the base name without extension and add .png
-            base_name = os.path.splitext(file)[0]
-            png_file = base_name + '.png'
-            val_images.append(png_file)
-            xml_file = base_name + '.xml'
-            val_xml.append(xml_file)
+                # Check if image and xml files exist
+                if os.path.exists(os.path.join(src_dir, png_file)):
+                    images.append(png_file)
+                if os.path.exists(os.path.join(src_dir, xml_file)):
+                    xml_files.append(xml_file)
+            return images, xml_files
 
-        test_xml = []
-        test_images = []
-        for file in test_ann_txt:
-            # Get the base name without extension and add .png
-            base_name = os.path.splitext(file)[0]
-            png_file = base_name + '.png'
-            test_images.append(png_file)
-            xml_file = base_name + '.xml'
-            test_xml.append(xml_file)
+        # Get related files for train, val, and test splits
+        train_images, train_xml = get_related_files(train_ann_txt, source_dir)
+        val_images, val_xml = get_related_files(val_ann_txt, source_dir)
+        test_images, test_xml = get_related_files(test_ann_txt, source_dir)
+
+        # Helper function to move files with error handling
+        def move_files(file_list, src_folder, dst_folder, optional_files=False):
+            for file in file_list:
+                src_path = os.path.join(src_folder, file)
+                dst_path = os.path.join(dst_folder, file)
+
+                try:
+                    shutil.move(src_path, dst_path)
+                except FileNotFoundError:
+                    if not optional_files:
+                        print(f"File not found and skipped: {file}")
+
+        # Move train files
+        move_files(train_images, source_dir, os.path.join(ext_source_dir, 'train/images'))
+        move_files(train_xml, source_dir, os.path.join(ext_source_dir, 'train/labels'), optional_files=True)
+        move_files(train_ann_txt, source_dir, os.path.join(ext_source_dir, 'train/labels'))
+
+        # Move val files
+        move_files(val_images, source_dir, os.path.join(ext_source_dir, 'val/images'))
+        move_files(val_xml, source_dir, os.path.join(ext_source_dir, 'val/labels'), optional_files=True)
+        move_files(val_ann_txt, source_dir, os.path.join(ext_source_dir, 'val/labels'))
+
+        # Move test files
+        move_files(test_images, source_dir, os.path.join(ext_source_dir, 'test/images'))
+        move_files(test_xml, source_dir, os.path.join(ext_source_dir, 'test/labels'), optional_files=True)
+        move_files(test_ann_txt, source_dir, os.path.join(ext_source_dir, 'test/labels'))
+
+    def organize_files1(self, source_dir, train_ratio, val_ratio, test_ratio):
+        """
+        Organize files into separate 'images' and 'labels' folders for training, validation, and testing.
+
+        Parameters:
+        source_dir (str): The directory containing mixed image and label files.
+        train_ratio (float): Proportion of data to use for training.
+        val_ratio (float): Proportion of data to use for validation.
+        test_ratio (float): Proportion of data to use for testing.
+        """
+        base_dataset = "test_dataset"
+        ext_source_dir = os.path.join(source_dir, base_dataset)
+
+        # Define dataset splits and create directories
+        dataset_splits = ['train', 'val', 'test']
+        for split in dataset_splits:
+            for folder in ['images', 'labels']:
+                os.makedirs(os.path.join(ext_source_dir, split, folder), exist_ok=True)
+
+        # Get list of all annotation files
+        all_ann_txt = [f for f in os.listdir(source_dir) if f.endswith('.txt')]
+
+        # Shuffle and split the files
+        np.random.shuffle(all_ann_txt)
+        total_ann_txt = len(all_ann_txt)
+        train_end = int(train_ratio * total_ann_txt)
+        val_end = int((train_ratio + val_ratio) * total_ann_txt)
+
+        # Split annotation files into train, val, and test
+        train_ann_txt = all_ann_txt[:train_end]
+        val_ann_txt = all_ann_txt[train_end:val_end]
+        test_ann_txt = all_ann_txt[val_end:]
+
+        # Helper function to extract corresponding image and XML files
+        def get_related_files(ann_txt_files, src_dir):
+            images, xml_files = [], []
+            for txt_file in ann_txt_files:
+                base_name = os.path.splitext(txt_file)[0]
+                png_file = base_name + '.png'
+                xml_file = base_name + '.xml'
+
+                # Check if image and xml files exist
+                if os.path.exists(os.path.join(src_dir, png_file)):
+                    images.append(png_file)
+                if os.path.exists(os.path.join(src_dir, xml_file)):
+                    xml_files.append(xml_file)
+            return images, xml_files
+
+        # Get related files for train, val, and test splits
+        train_images, train_xml = get_related_files(train_ann_txt, source_dir)
+        val_images, val_xml = get_related_files(val_ann_txt, source_dir)
+        test_images, test_xml = get_related_files(test_ann_txt, source_dir)
 
         # Helper function to move files
         def move_files(file_list, src_folder, dst_folder):
             for file in file_list:
-                shutil.move(os.path.join(src_folder, file), os.path.join(dst_folder, file))
-                label_file = file.replace('.png', '.txt')  # Assuming image files are .jpg and label files are .txt
-                xml_file = file.replace('.png', '.xml')  # Assuming image files are .jpg and label files are .txt
-                if os.path.exists(os.path.join(src_folder, label_file)):
-                    shutil.move(os.path.join(src_folder, label_file), os.path.join(dst_folder, label_file))
-                if os.path.exists(os.path.join(src_folder, xml_file)):
-                    shutil.move(os.path.join(src_folder, xml_file), os.path.join(dst_folder, xml_file))
+                src_path = os.path.join(src_folder, file)
+                dst_path = os.path.join(dst_folder, file)
+                if os.path.exists(src_path):
+                    shutil.move(src_path, dst_path)
 
-        # Create destination folders
-        for folder in ['train', 'val', 'test']:
-            os.makedirs(os.path.join(images_path, folder), exist_ok=True)
-            os.makedirs(os.path.join(labels_path, folder), exist_ok=True)
+        # Move train files
+        move_files(train_images, source_dir, os.path.join(ext_source_dir, 'train/images'))
+        move_files(train_xml, source_dir, os.path.join(ext_source_dir, 'train/labels'))
+        move_files(train_ann_txt, source_dir, os.path.join(ext_source_dir, 'train/labels'))
 
-        # Move txt files to respective folders
-        move_files(train_ann_txt, labels_path, os.path.join(labels_path, 'train'))
-        move_files(val_ann_txt, labels_path, os.path.join(labels_path, 'val'))
-        move_files(test_ann_txt, labels_path, os.path.join(labels_path, 'test'))
+        # Move val files
+        move_files(val_images, source_dir, os.path.join(ext_source_dir, 'val/images'))
+        move_files(val_xml, source_dir, os.path.join(ext_source_dir, 'val/labels'))
+        move_files(val_ann_txt, source_dir, os.path.join(ext_source_dir, 'val/labels'))
 
-        # Move xml files to respective folders
-        move_files(train_xml, labels_path, os.path.join(labels_path, 'train'))
-        move_files(val_xml, labels_path, os.path.join(labels_path, 'val'))
-        move_files(test_xml, labels_path, os.path.join(labels_path, 'test'))
+        # Move test files
+        move_files(test_images, source_dir, os.path.join(ext_source_dir, 'test/images'))
+        move_files(test_xml, source_dir, os.path.join(ext_source_dir, 'test/labels'))
+        move_files(test_ann_txt, source_dir, os.path.join(ext_source_dir, 'test/labels'))
 
-        # Move JPG files to respective folders
-        move_files(train_images, images_path, os.path.join(images_path, 'train'))
-        move_files(val_images, images_path, os.path.join(images_path, 'val'))
-        move_files(test_images, images_path, os.path.join(images_path, 'test'))
 
     def validate_annotations(self):
         if not hasattr(self, 'image_path') or not self.image_path:
