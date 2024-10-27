@@ -564,14 +564,14 @@ class Yolo8AnnotationTool(QMainWindow):
                             break
 
                     if image_file is None:
-                        print(f"Image file not found for {yolo_file}")
+                        # self.log(f"Image file not found for {yolo_file}")
                         continue  # Skip if no image is found
 
                     # Read the corresponding image size
                     try:
                         width, height = self.get_image_size(image_file)
                     except Exception as e:
-                        print(f"Failed to get image size for {image_file}: {e}")
+                        self.log(f"Failed to get image size for {image_file}: {e}")
                         continue  # Skip if unable to read image size
 
                     # Read YOLO annotations
@@ -616,7 +616,7 @@ class Yolo8AnnotationTool(QMainWindow):
                     with open(voc_file, "wb") as xml_out:
                         xml_out.write(voc_xml)
 
-                    print(f"Converted {yolo_file} to {voc_file}")
+                    self.log(f"Converted {yolo_file} to {voc_file}")
 
     def get_image_size(self, image_path):
         try:
