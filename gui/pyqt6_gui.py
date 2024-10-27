@@ -113,7 +113,7 @@ class CategoryInputDialog(QDialog):
         self.setLayout(self.layout)
 
     def browse_file(self):
-        file_path, _ = QFileDialog.getExistingDirectory(self, "Location to yolo annotation format")
+        file_path = QFileDialog.getExistingDirectory(self, "Location to yolo annotation format")
         if file_path:
             self.path_input.setText(file_path)
 
@@ -1047,82 +1047,6 @@ class Yolo8AnnotationTool(QMainWindow):
         # Move test files
         move_files(test_images, source_dir, os.path.join(ext_source_dir, 'test/images'))
         move_files(test_xml, source_dir, os.path.join(ext_source_dir, 'test/labels'), optional_files=True)
-        move_files(test_ann_txt, source_dir, os.path.join(ext_source_dir, 'test/labels'))
-
-    def organize_files1(self, source_dir, train_ratio, val_ratio, test_ratio):
-        """
-        Organize files into separate 'images' and 'labels' folders for training, validation, and testing.
-
-        Parameters:
-        source_dir (str): The directory containing mixed image and label files.
-        train_ratio (float): Proportion of data to use for training.
-        val_ratio (float): Proportion of data to use for validation.
-        test_ratio (float): Proportion of data to use for testing.
-        """
-        base_dataset = "test_dataset"
-        ext_source_dir = os.path.join(source_dir, base_dataset)
-
-        # Define dataset splits and create directories
-        dataset_splits = ['train', 'val', 'test']
-        for split in dataset_splits:
-            for folder in ['images', 'labels']:
-                os.makedirs(os.path.join(ext_source_dir, split, folder), exist_ok=True)
-
-        # Get list of all annotation files
-        all_ann_txt = [f for f in os.listdir(source_dir) if f.endswith('.txt')]
-
-        # Shuffle and split the files
-        np.random.shuffle(all_ann_txt)
-        total_ann_txt = len(all_ann_txt)
-        train_end = int(train_ratio * total_ann_txt)
-        val_end = int((train_ratio + val_ratio) * total_ann_txt)
-
-        # Split annotation files into train, val, and test
-        train_ann_txt = all_ann_txt[:train_end]
-        val_ann_txt = all_ann_txt[train_end:val_end]
-        test_ann_txt = all_ann_txt[val_end:]
-
-        # Helper function to extract corresponding image and XML files
-        def get_related_files(ann_txt_files, src_dir):
-            images, xml_files = [], []
-            for txt_file in ann_txt_files:
-                base_name = os.path.splitext(txt_file)[0]
-                png_file = base_name + '.png'
-                xml_file = base_name + '.xml'
-
-                # Check if image and xml files exist
-                if os.path.exists(os.path.join(src_dir, png_file)):
-                    images.append(png_file)
-                if os.path.exists(os.path.join(src_dir, xml_file)):
-                    xml_files.append(xml_file)
-            return images, xml_files
-
-        # Get related files for train, val, and test splits
-        train_images, train_xml = get_related_files(train_ann_txt, source_dir)
-        val_images, val_xml = get_related_files(val_ann_txt, source_dir)
-        test_images, test_xml = get_related_files(test_ann_txt, source_dir)
-
-        # Helper function to move files
-        def move_files(file_list, src_folder, dst_folder):
-            for file in file_list:
-                src_path = os.path.join(src_folder, file)
-                dst_path = os.path.join(dst_folder, file)
-                if os.path.exists(src_path):
-                    shutil.move(src_path, dst_path)
-
-        # Move train files
-        move_files(train_images, source_dir, os.path.join(ext_source_dir, 'train/images'))
-        move_files(train_xml, source_dir, os.path.join(ext_source_dir, 'train/labels'))
-        move_files(train_ann_txt, source_dir, os.path.join(ext_source_dir, 'train/labels'))
-
-        # Move val files
-        move_files(val_images, source_dir, os.path.join(ext_source_dir, 'val/images'))
-        move_files(val_xml, source_dir, os.path.join(ext_source_dir, 'val/labels'))
-        move_files(val_ann_txt, source_dir, os.path.join(ext_source_dir, 'val/labels'))
-
-        # Move test files
-        move_files(test_images, source_dir, os.path.join(ext_source_dir, 'test/images'))
-        move_files(test_xml, source_dir, os.path.join(ext_source_dir, 'test/labels'))
         move_files(test_ann_txt, source_dir, os.path.join(ext_source_dir, 'test/labels'))
 
 
