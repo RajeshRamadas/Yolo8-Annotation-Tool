@@ -4,6 +4,10 @@ import shutil
 import numpy as np
 import subprocess
 import importlib.util
+import json
+import xmltodict
+from PIL import Image
+import xml.etree.ElementTree as ET
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -30,8 +34,91 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPixmap, QAction, QIcon, QImage, QPainter, QPen
 from PyQt6.QtCore import Qt, QPoint, QRect
 from PIL import Image, ImageEnhance, ImageQt
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox
 
-#custom import
+class DataSplitterInputDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Enter Test Dataset Ratio")
+        self.layout = QVBoxLayout()
+
+        self.train_label = QLabel("Train:(Example: 0.6)")
+        self.train_input = QLineEdit()
+        self.train_input.setText("0.6")  # Default value
+        self.layout.addWidget(self.train_label)
+        self.layout.addWidget(self.train_input)
+
+        self.val_label = QLabel("Validation:(Example: 0.2)")
+        self.val_input = QLineEdit()
+        self.val_input.setText("0.2")  # Default value
+        self.layout.addWidget(self.val_label)
+        self.layout.addWidget(self.val_input)
+
+        self.test_label = QLabel("Test:(Example: 0.2)")
+        self.test_input = QLineEdit()
+        self.test_input.setText("0.2")  # Default value
+        self.layout.addWidget(self.test_label)
+        self.layout.addWidget(self.test_input)
+
+        self.path_label = QLabel("Path to annotated dataset folder:")
+        self.path_input = QLineEdit()
+        self.browse_button = QPushButton("Browse")
+        self.browse_button.clicked.connect(self.browse_folder)
+        self.layout.addWidget(self.path_label)
+        self.layout.addWidget(self.path_input)
+        self.layout.addWidget(self.browse_button)
+
+        self.submit_button = QPushButton("Submit")
+        self.submit_button.clicked.connect(self.accept)
+        self.layout.addWidget(self.submit_button)
+
+        self.setLayout(self.layout)
+
+    def browse_folder(self):
+        folder_path = QFileDialog.getExistingDirectory(self, "Dataset Spliter location")
+        if folder_path:
+            self.path_input.setText(folder_path)
+
+    def get_inputs(self):
+        return self.train_input.text(), self.val_input.text(), self.test_input.text(), self.path_input.text()
+
+class CategoryInputDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Enter Category ID, Name, and Path")
+        self.layout = QVBoxLayout()
+
+        self.id_label = QLabel("Annotation ID:")
+        self.id_input = QLineEdit()
+        self.layout.addWidget(self.id_label)
+        self.layout.addWidget(self.id_input)
+
+        self.name_label = QLabel("Annotation Name:")
+        self.name_input = QLineEdit()
+        self.layout.addWidget(self.name_label)
+        self.layout.addWidget(self.name_input)
+
+        self.path_label = QLabel("Path to .txt File:")
+        self.path_input = QLineEdit()
+        self.browse_button = QPushButton("Browse")
+        self.browse_button.clicked.connect(self.browse_file)
+        self.layout.addWidget(self.path_label)
+        self.layout.addWidget(self.path_input)
+        self.layout.addWidget(self.browse_button)
+
+        self.submit_button = QPushButton("Submit")
+        self.submit_button.clicked.connect(self.accept)
+        self.layout.addWidget(self.submit_button)
+
+        self.setLayout(self.layout)
+
+    def browse_file(self):
+        file_path = QFileDialog.getExistingDirectory(self, "Location to yolo annotation format")
+        if file_path:
+            self.path_input.setText(file_path)
+
+    def get_inputs(self):
+        return self.id_input.text(), self.name_input.text(), self.path_input.text()
 
 
 class Yolo8AnnotationTool(QMainWindow):
@@ -50,6 +137,7 @@ class Yolo8AnnotationTool(QMainWindow):
         self.redo_stack = []  # Stack to store redo actions
         self.image_path = None  # Path of image selected in the display window
         self.load_images = None  # Path of image selected in the display window
+        self.directory_path = None # save dir for annotation files
 
         # Create central widget and main layout
         central_widget = QWidget(self)
@@ -243,7 +331,7 @@ class Yolo8AnnotationTool(QMainWindow):
         # Annotation Text Input
         self.annotation_input = QLineEdit(self)
         self.annotation_input.setPlaceholderText("Enter annotation class...")
-        self.annotation_text = QLabel("Annotation class:", self)
+        self.annotation_text = QLabel("Annotation ID:", self)
         layout.addWidget(self.annotation_text)
         layout.addRow(QLabel("", self), self.annotation_input)
 
@@ -351,34 +439,45 @@ class Yolo8AnnotationTool(QMainWindow):
         self.addToolBar(toolbar)
 
         # Add Folder Path Button
-        add_folder_action = QAction("Load Images", self)
-        add_folder_action.triggered.connect(self.add_folder)
-        toolbar.addAction(add_folder_action)
+        load_images_action = QAction("Load Images", self)
+        load_images_action.triggered.connect(self.load_images_annotation)
+        toolbar.addAction(load_images_action)
 
-        # Save Image Action
-        save_image_action = QAction(QIcon("icons/save.png"), "Save Image", self)
-        save_image_action.triggered.connect(self.save_image)
-        toolbar.addAction(save_image_action)
+        # Image Reload
+        images_reload_action = QAction("Image Reload", self)
+        images_reload_action.triggered.connect(self.image_reload)
+        toolbar.addAction(images_reload_action)
 
         # Reset Image Action
         reset_image_action = QAction("Reset Image", self)
         reset_image_action.triggered.connect(self.reset_image_settings)
         toolbar.addAction(reset_image_action)
 
-        # Dataset Spliter Action
-        dataset_spliter_action = QAction("Dataset Splitter", self)
-        dataset_spliter_action.triggered.connect(self.create_yolo8_folders)
-        toolbar.addAction(dataset_spliter_action)
+        # Save Image Action
+        save_image_action = QAction(QIcon("icons/save.png"), "Save Image", self)
+        save_image_action.triggered.connect(self.save_image)
+        toolbar.addAction(save_image_action)
 
         # Image png converter
         png_converter_action = QAction("PNG Converter", self)
         png_converter_action.triggered.connect(self.png_converter)
         toolbar.addAction(png_converter_action)
 
-        # Image Reload
-        images_reload_action = QAction("Images Reload", self)
-        images_reload_action.triggered.connect(self.image_reload)
-        toolbar.addAction(images_reload_action)
+        # New action for converting annotations
+        convert_annotations_action = QAction("VOC XML Format", self)
+        convert_annotations_action.triggered.connect(self.show_category_input_dialog)
+        toolbar.addAction(convert_annotations_action)
+
+        # Dataset Spliter Action
+        dataset_spliter_action = QAction("Test Dataset Splitter", self)
+        dataset_spliter_action.triggered.connect(self.show_testing_dataset_input_dialog)
+        toolbar.addAction(dataset_spliter_action)
+
+
+
+
+
+
 
     def image_reload(self):
         """reload images"""
@@ -392,7 +491,8 @@ class Yolo8AnnotationTool(QMainWindow):
         if folder_path:
             self.convert_all_images_in_directory(folder_path)
 
-    def add_folder(self):
+
+    def load_images_annotation(self):
         """Add a folder containing images."""
         folder_path = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder_path:
@@ -415,6 +515,116 @@ class Yolo8AnnotationTool(QMainWindow):
             self.load_image(self.image_list[self.current_index])
         else:
             self.log("No images found in the selected folder.")
+
+    def show_testing_dataset_input_dialog(self):
+        dialog = DataSplitterInputDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            train_ratio, val_ratio, test_ratio, folder_path = dialog.get_inputs()
+            train_ratio = float(train_ratio)
+            val_ratio = float(val_ratio)
+            test_ratio = float(test_ratio)
+            ratio_sum = train_ratio + val_ratio + test_ratio
+            if round(ratio_sum) != 1:
+                QMessageBox.warning(self, "Invalid Test Dataset" , f"{ratio_sum} is not equal to 1.0 \n")
+                return
+
+            if not train_ratio or not val_ratio or not test_ratio or not folder_path:
+                QMessageBox.warning(self, "Invalid Input", "All fields are required.")
+                return
+            self.create_yolo8_folders(folder_path, train_ratio, val_ratio, test_ratio)
+
+    def show_category_input_dialog(self):
+        dialog = CategoryInputDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            category_id, category_name, txt_file_path = dialog.get_inputs()
+            if not category_id or not category_name or not txt_file_path:
+                QMessageBox.warning(self, "Invalid Input", "All fields are required.")
+                return
+            # Example class mapping for YOLO class IDs to VOC class names
+            class_mapping = {
+                category_id: category_name
+            }
+            self.yolo_to_voc(txt_file_path, class_mapping)
+
+    def yolo_to_voc(self, yolo_dir, class_mapping):
+        # Traverse through the folder and identify YOLOv8 files
+        yolo_dir = os.path.dirname(yolo_dir)
+        for root, dirs, files in os.walk(yolo_dir):
+            for file in files:
+                if file.endswith(".txt"):
+                    yolo_file = os.path.join(root, file)
+
+                    # Try to find the image file with possible extensions (.png, .jpg, etc.)
+                    image_file = None
+                    # for ext in [".png", ".jpg", ".jpeg"]:
+                    for ext in [".png"]:
+                        possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
+                        if os.path.exists(possible_image_file):
+                            image_file = possible_image_file
+                            break
+
+                    if image_file is None:
+                        # self.log(f"Image file not found for {yolo_file}")
+                        continue  # Skip if no image is found
+
+                    # Read the corresponding image size
+                    try:
+                        width, height = self.get_image_size(image_file)
+                    except Exception as e:
+                        self.log(f"Failed to get image size for {image_file}: {e}")
+                        continue  # Skip if unable to read image size
+
+                    # Read YOLO annotations
+                    with open(yolo_file, "r") as f:
+                        lines = f.readlines()
+
+                    # Create XML structure
+                    annotation = ET.Element("annotation")
+                    ET.SubElement(annotation, "filename").text = os.path.basename(image_file)
+
+                    size = ET.SubElement(annotation, "size")
+                    ET.SubElement(size, "width").text = str(width)
+                    ET.SubElement(size, "height").text = str(height)
+
+                    for line in lines:
+                        data = line.strip().split()
+                        class_id, x_center, y_center, bbox_width, bbox_height = map(float, data)
+
+                        # Convert normalized YOLOv8 coordinates to VOC absolute pixel values
+                        xmin = int((x_center - bbox_width / 2) * width)
+                        ymin = int((y_center - bbox_height / 2) * height)
+                        xmax = int((x_center + bbox_width / 2) * width)
+                        ymax = int((y_center + bbox_height / 2) * height)
+
+                        # Get the class name from the class_id using the provided class_mapping
+                        class_name = class_mapping.get(int(class_id), "unknown")
+
+                        obj = ET.SubElement(annotation, "object")
+                        ET.SubElement(obj, "name").text = class_name
+
+                        bndbox = ET.SubElement(obj, "bndbox")
+                        ET.SubElement(bndbox, "xmin").text = str(xmin)
+                        ET.SubElement(bndbox, "ymin").text = str(ymin)
+                        ET.SubElement(bndbox, "xmax").text = str(xmax)
+                        ET.SubElement(bndbox, "ymax").text = str(ymax)
+
+                    # Convert the ElementTree to a string
+                    voc_xml = ET.tostring(annotation, encoding="utf-8", method="xml")
+
+                    # Save the XML to the same directory
+                    voc_file = os.path.join(root, os.path.splitext(file)[0] + ".xml")
+                    with open(voc_file, "wb") as xml_out:
+                        xml_out.write(voc_xml)
+
+                    self.log(f"Converted {yolo_file} to {voc_file}")
+
+    def get_image_size(self, image_path):
+        try:
+            with Image.open(image_path) as img:
+                return img.size  # (width, height)
+        except Exception as e:
+            raise ValueError(f"Unable to open image: {e}")
+
 
     def next_image(self):
         """Show the next image in the list."""
@@ -744,7 +954,7 @@ class Yolo8AnnotationTool(QMainWindow):
     def log(self, message):
         self.log_window.append(message)
 
-    def create_yolo8_folders(self):
+    def create_yolo8_folders(self, folder_path, train_ratio, val_ratio, test_ratio):
         """
         Create the necessary folder structure for YOLOv8 training data.
 
@@ -752,140 +962,93 @@ class Yolo8AnnotationTool(QMainWindow):
         base_path (str): The root directory where the YOLOv8 dataset folders will be created.
         """
         # Define the base path where the dataset folders will be created
-        base_folder = 'yolo8_dataset'
-        folder_path = QFileDialog.getExistingDirectory(self, "Dataset Spliter location")
-        dataset_path = os.path.join(folder_path, base_folder)
-
-        # Check for valid path
         if not folder_path:
             self.log(f"Invalid Directory : {folder_path}")
             return
 
-        # Check is 'yolo8_dataset' folder already exist
-        if not os.path.exists(dataset_path):
-            # Define the folder structure
-            self.organize_files(folder_path)
-            self.split_dataset(folder_path)
-            QMessageBox.information(self, "Success", f"Training dataset generated. {folder_path}")
-        else:
-            QMessageBox.information(self, "Warning", f"Directory already exist: {folder_path}/{base_folder}")
-            self.log(f"Directory already exist: {folder_path}/{base_folder}")
-            self.log(f"==> Delete: {folder_path}/{base_folder}")
+        self.organize_files(folder_path, train_ratio, val_ratio, test_ratio)
+        QMessageBox.information(self, "Success", f"Training dataset generated. {folder_path}")
 
-    def organize_files(self, source_dir):
+    def organize_files(self, source_dir, train_ratio, val_ratio, test_ratio):
         """
-        Organize files into separate 'images' and 'labels' folders.
+        Organize files into separate 'images' and 'labels' folders for training, validation, and testing.
 
         Parameters:
         source_dir (str): The directory containing mixed image and label files.
-        target_images_dir (str): The directory to move image files to.
-        target_labels_dir (str): The directory to move label files to.
+        train_ratio (float): Proportion of data to use for training.
+        val_ratio (float): Proportion of data to use for validation.
+        test_ratio (float): Proportion of data to use for testing.
         """
-        # Create folder path for Images and labels
-        target_images_dir = os.path.join(source_dir, f"images")
-        target_labels_dir = os.path.join(source_dir, f"labels")
+        base_dataset = "test_dataset"
+        ext_source_dir = os.path.join(source_dir, base_dataset)
 
-        # Ensure the target directories exist
-        os.makedirs(target_images_dir, exist_ok=True)
-        os.makedirs(target_labels_dir, exist_ok=True)
+        # Define dataset splits and create directories
+        dataset_splits = ['train', 'val', 'test']
+        for split in dataset_splits:
+            for folder in ['images', 'labels']:
+                os.makedirs(os.path.join(ext_source_dir, split, folder), exist_ok=True)
 
-        # List all files in the source directory
-        files = os.listdir(source_dir)
+        # Get list of all annotation files
+        all_ann_txt = [f for f in os.listdir(source_dir) if f.endswith('.txt')]
 
-        for file in files:
-            # Construct full file path
-            file_path = os.path.join(source_dir, file)
-
-            if os.path.isfile(file_path):
-                # Determine file extension
-                _, ext = os.path.splitext(file)
-
-                # Check if file is an image or a label
-                if ext.lower() in ['.png']:  # Add or remove extensions as needed
-                    # Move image files
-                    shutil.move(file_path, os.path.join(target_images_dir, file))
-                    self.log(f"Moved image file: {file}")
-                elif ext.lower() == '.txt':
-                    # Move label files
-                    shutil.move(file_path, os.path.join(target_labels_dir, file))
-                    self.log(f"Moved label file: {file}")
-
-    def split_dataset(self, base_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1):
-        """
-        Split dataset into training, validation, and test sets.
-
-        Parameters:
-        base_path (str): The root directory of the dataset.
-        train_ratio (float): Ratio of data used for training.
-        val_ratio (float): Ratio of data used for validation.
-        test_ratio (float): Ratio of data used for testing.
-        """
-
-        # Paths for images and labels
-        images_path = os.path.join(base_path, "images")
-        labels_path = os.path.join(base_path, "labels")
-
-        # Ensure these directories exist
-        assert os.path.exists(images_path), f"Images path {images_path} does not exist."
-        assert os.path.exists(labels_path), f"Labels path {labels_path} does not exist."
-
-        # Get list of all images
-        all_ann_txt = [f for f in os.listdir(labels_path) if os.path.isfile(os.path.join(labels_path, f))]
-
-        # Shuffle and split
+        # Shuffle and split the files
         np.random.shuffle(all_ann_txt)
-
         total_ann_txt = len(all_ann_txt)
         train_end = int(train_ratio * total_ann_txt)
         val_end = int((train_ratio + val_ratio) * total_ann_txt)
 
+        # Split annotation files into train, val, and test
         train_ann_txt = all_ann_txt[:train_end]
         val_ann_txt = all_ann_txt[train_end:val_end]
         test_ann_txt = all_ann_txt[val_end:]
 
-        train_images = []
-        for file in train_ann_txt:
-            # Get the base name without extension and add .png
-            base_name = os.path.splitext(file)[0]
-            png_file = base_name + '.png'
-            train_images.append(png_file)
+        # Helper function to extract corresponding image and XML files
+        def get_related_files(ann_txt_files, src_dir):
+            images, xml_files = [], []
+            for txt_file in ann_txt_files:
+                base_name = os.path.splitext(txt_file)[0]
+                png_file = base_name + '.png'
+                xml_file = base_name + '.xml'
 
-        val_images = []
-        for file in val_ann_txt:
-            # Get the base name without extension and add .png
-            base_name = os.path.splitext(file)[0]
-            png_file = base_name + '.png'
-            val_images.append(png_file)
+                # Check if image and xml files exist
+                if os.path.exists(os.path.join(src_dir, png_file)):
+                    images.append(png_file)
+                if os.path.exists(os.path.join(src_dir, xml_file)):
+                    xml_files.append(xml_file)
+            return images, xml_files
 
-        test_images = []
-        for file in test_ann_txt:
-            # Get the base name without extension and add .png
-            base_name = os.path.splitext(file)[0]
-            png_file = base_name + '.png'
-            test_images.append(png_file)
+        # Get related files for train, val, and test splits
+        train_images, train_xml = get_related_files(train_ann_txt, source_dir)
+        val_images, val_xml = get_related_files(val_ann_txt, source_dir)
+        test_images, test_xml = get_related_files(test_ann_txt, source_dir)
 
-        # Helper function to move files
-        def move_files(file_list, src_folder, dst_folder):
+        # Helper function to move files with error handling
+        def move_files(file_list, src_folder, dst_folder, optional_files=False):
             for file in file_list:
-                shutil.move(os.path.join(src_folder, file), os.path.join(dst_folder, file))
-                label_file = file.replace('.png', '.txt')  # Assuming image files are .jpg and label files are .txt
-                if os.path.exists(os.path.join(src_folder, label_file)):
-                    shutil.move(os.path.join(src_folder, label_file), os.path.join(dst_folder, label_file))
+                src_path = os.path.join(src_folder, file)
+                dst_path = os.path.join(dst_folder, file)
 
-        # Create destination folders
-        for folder in ['train', 'val', 'test']:
-            os.makedirs(os.path.join(images_path, folder), exist_ok=True)
-            os.makedirs(os.path.join(labels_path, folder), exist_ok=True)
+                try:
+                    shutil.move(src_path, dst_path)
+                except FileNotFoundError:
+                    if not optional_files:
+                        print(f"File not found and skipped: {file}")
 
-        # Move files to respective folders
-        move_files(train_ann_txt, labels_path, os.path.join(labels_path, 'train'))
-        move_files(test_ann_txt, labels_path, os.path.join(labels_path, 'val'))
-        move_files(val_ann_txt, labels_path, os.path.join(labels_path, 'test'))
+        # Move train files
+        move_files(train_images, source_dir, os.path.join(ext_source_dir, 'train/images'))
+        move_files(train_xml, source_dir, os.path.join(ext_source_dir, 'train/labels'), optional_files=True)
+        move_files(train_ann_txt, source_dir, os.path.join(ext_source_dir, 'train/labels'))
 
-        # Move files to respective folders
-        move_files(train_images, images_path, os.path.join(images_path, 'train'))
-        move_files(test_images, images_path, os.path.join(images_path, 'val'))
-        move_files(val_images, images_path, os.path.join(images_path, 'test'))
+        # Move val files
+        move_files(val_images, source_dir, os.path.join(ext_source_dir, 'val/images'))
+        move_files(val_xml, source_dir, os.path.join(ext_source_dir, 'val/labels'), optional_files=True)
+        move_files(val_ann_txt, source_dir, os.path.join(ext_source_dir, 'val/labels'))
+
+        # Move test files
+        move_files(test_images, source_dir, os.path.join(ext_source_dir, 'test/images'))
+        move_files(test_xml, source_dir, os.path.join(ext_source_dir, 'test/labels'), optional_files=True)
+        move_files(test_ann_txt, source_dir, os.path.join(ext_source_dir, 'test/labels'))
+
 
     def validate_annotations(self):
         if not hasattr(self, 'image_path') or not self.image_path:
