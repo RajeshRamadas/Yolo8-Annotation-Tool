@@ -3,6 +3,7 @@
 ## Project Synopsis
 
 The **Yolo8 Annotation Tool** is a comprehensive application designed for annotating images with bounding boxes. It is built using Python and leverages the PyQt6 library for the graphical user interface. The tool is intended to facilitate the creation of annotated datasets for machine learning models, particularly for object detection tasks.
+Additionally, there is an option to generate data in VOC XML format.
 
 ## Key Features
 
