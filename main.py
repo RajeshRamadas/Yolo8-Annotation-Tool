@@ -81,6 +81,6 @@ def main():
 
 
 if __name__ == "__main__":
-    validate_packages()
-    check_python_version(python_version)
+    # validate_packages()
+    # check_python_version(python_version)
     main()
