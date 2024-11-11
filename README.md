@@ -3,7 +3,6 @@
 ## Project Synopsis
 
 The **Yolo8 Annotation Tool** is a comprehensive application designed for annotating images with bounding boxes. It is built using Python and leverages the PyQt6 library for the graphical user interface. The tool is intended to facilitate the creation of annotated datasets for machine learning models, particularly for object detection tasks.
-Additionally, there is an option to generate data in VOC XML format.
 
 ## Key Features
 
@@ -49,7 +48,7 @@ The YOLOv8 model annotation format typically consists of text files with the sam
   **width:** The width of the bounding box, normalized to the image width (value between 0 and 1).
 
   **height:** The height of the bounding box, normalized to the image height (value between 0 and 1).
-
+  
 **Example:**
 For an image named image1.jpg, the corresponding annotation file would be image1.txt and might contain:
 
@@ -63,7 +62,7 @@ The first line represents an object of class 0 with a bounding box centered at (
 The second line represents an object of class 1 with a bounding box centered at (75%, 25%).
 
 This format is essential for training YOLOv8 models effectively.
-
+  
 ## Installation Instructions
 
 ### Prerequisites
@@ -95,8 +94,8 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
     ```bash
     # This will launch the Yolo8 Annotation Tool interface.
     python main.py
-
-## Application
+   
+## Application 
 
 ![img.png](image/doc/app.png)
 
