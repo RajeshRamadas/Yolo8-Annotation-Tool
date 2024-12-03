@@ -98,7 +98,7 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
    
 ## Application 
 
-![img.png](image/doc/app.png)
+![img.png](02-Implementation/image/doc/app.png)
 
 ## Conclusion
 The Yolo8 Annotation Tool is designed to be user-friendly and efficient, providing a robust set of features for creating annotated datasets for machine learning training. It simplifies the process of image annotation, making it accessible for both novice and experienced users in the field of computer vision.
