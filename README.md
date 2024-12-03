@@ -36,7 +36,7 @@ Additionally, there is an option to generate data in VOC XML format.
 ## Annotation format
 The YOLOv8 model annotation format typically consists of text files with the same name as the corresponding image file. Each line in the text file represents one object in the image and follows this structure:
 
-![img.png](image/doc/img.png)
+![img.png](02-Implementation/image/doc/img.png)
 
 **Explanation of the Components:**
 
