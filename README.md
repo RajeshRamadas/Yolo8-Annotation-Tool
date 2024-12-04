@@ -31,7 +31,6 @@ Additionally, there is an option to generate data in VOC XML format.
 ## Limitation
 
 - **Single Category Annotation**: This tool currently supports annotating images with only one category or class per project.
-- **Single Format Annotation**: This tool currently supports annotation in a single format compatible with the YOLOv8 model.
 
 ## Annotation format
 The YOLOv8 model annotation format typically consists of text files with the same name as the corresponding image file. Each line in the text file represents one object in the image and follows this structure:
