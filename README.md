@@ -29,6 +29,11 @@ Additionally, there is an option to generate data in VOC XML format.
 - **Organize Files**: Organize files and create necessary folders for YOLOv8.
 - **Dataset Splitting**: Split datasets for training and validation purposes.
 
+### Annotation Format
+- **VOC XML**
+- **COCO JSON**
+- **YOLO Annotation Format**
+
 ## Limitation
 
 - **Single Category Annotation**: This tool currently supports annotating images with only one category or class per project.
