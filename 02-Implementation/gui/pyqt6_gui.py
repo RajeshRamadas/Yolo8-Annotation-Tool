@@ -374,22 +374,6 @@ class Yolo8AnnotationTool(QMainWindow):
         layout.addRow(QLabel())  # Add a blank row for spacing
 
 
-        # Reset Image Action
-        reset_image_action = QPushButton("Reset Image", self)
-        reset_image_action.clicked.connect(self.reset_image_settings)
-        reset_image_action.setStyleSheet("""
-    QPushButton {
-        background-color: #ff6b6b;  /* Soft red */
-        color: white;
-        border-radius: 5px;
-        padding: 5px;
-    }
-    QPushButton:hover {
-        background-color: #ff4c4c; /* Slightly darker red on hover */
-    }
-""")
-        layout.addRow(reset_image_action)
-
         # Dataset Spliter Action
         save_image_action = QPushButton("Save Image", self)
         save_image_action.clicked.connect(self.save_image)
@@ -422,6 +406,22 @@ class Yolo8AnnotationTool(QMainWindow):
             }
         """)
         layout.addRow(reload_images_button)
+
+        # Reset Image Action
+        reset_image_action = QPushButton("Reset Image", self)
+        reset_image_action.clicked.connect(self.reset_image_settings)
+        reset_image_action.setStyleSheet("""
+            QPushButton {
+                background-color: #ff6b6b;  /* Soft red */
+                color: white;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #ff4c4c; /* Slightly darker red on hover */
+            }
+        """)
+        layout.addRow(reset_image_action)
 
 
         controls_group.setLayout(layout)
