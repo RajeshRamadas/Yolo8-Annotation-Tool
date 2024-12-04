@@ -30,9 +30,9 @@ Additionally, there is an option to generate data in VOC XML format.
 - **Dataset Splitting**: Split datasets for training and validation purposes.
 
 ### Annotation Format
+- **YOLO Annotation Format**
 - **VOC XML**
 - **COCO JSON**
-- **YOLO Annotation Format**
 
 ### Addition feature
 - **PNG CONVERTER**: Any image format will be converted to png image with height and width given in GUI.(Tool supports only .png image format)
