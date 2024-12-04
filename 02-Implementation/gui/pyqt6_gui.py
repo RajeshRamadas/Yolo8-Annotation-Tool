@@ -638,9 +638,13 @@ class Yolo8AnnotationTool(QMainWindow):
         png_converter_action.triggered.connect(self.png_converter)
         toolbar.addAction(png_converter_action)
 
-        convert_annotations_action = QAction("VOC XML Format", self)
-        convert_annotations_action.triggered.connect(self.show_category_input_dialog)
-        toolbar.addAction(convert_annotations_action)
+        convert_voc_annotations_action = QAction("VOC XML Format", self)
+        convert_voc_annotations_action.triggered.connect(self.show_category_voc_input_dialog)
+        toolbar.addAction(convert_voc_annotations_action)
+
+        convert_coco_annotations_action = QAction("COCO JSON Format", self)
+        convert_coco_annotations_action.triggered.connect(self.show_category_coco_input_dialog)
+        toolbar.addAction(convert_coco_annotations_action)
 
         # Image Reload
         dataset_spliter_action = QAction("Test Dataset Splitter", self)
@@ -699,7 +703,7 @@ class Yolo8AnnotationTool(QMainWindow):
                 QMessageBox.warning(self, "Invalid Input", "All fields are required.")
                 return
             self.create_yolo8_folders(folder_path, train_ratio, val_ratio, test_ratio)
-    def show_category_input_dialog(self):
+    def show_category_voc_input_dialog(self):
         dialog = CategoryInputDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             category_id, category_name, txt_file_path = dialog.get_inputs()
@@ -711,6 +715,115 @@ class Yolo8AnnotationTool(QMainWindow):
             }
             self.yolo_to_voc(txt_file_path, class_mapping)
 
+
+    def show_category_coco_input_dialog(self):
+        dialog = CategoryInputDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            category_id, category_name, txt_file_path = dialog.get_inputs()
+            if not category_id or not category_name or not txt_file_path:
+                QMessageBox.warning(self, "Invalid Input", "All fields are required.")
+                return
+            class_mapping = {
+                category_id: category_name
+            }
+            self.yolo_to_coco(txt_file_path, class_mapping)
+
+    def yolo_to_coco(self, yolo_dir, class_mapping):
+        # yolo_dir = os.path.dirname(yolo_dir)
+        # print(yolo_dir)
+        coco_data = {
+            "images": [],
+            "annotations": [],
+            "categories": []
+        }
+
+        # Prepare categories for COCO format
+        for class_id, class_name in class_mapping.items():
+            coco_data["categories"].append({
+                "id": class_id,
+                "name": class_name
+            })
+
+        annotation_id = 1
+        for root, dirs, files in os.walk(yolo_dir):
+            for file in files:
+                if file.endswith(".txt"):
+                    yolo_file = os.path.join(root, file)
+                    image_file = None
+
+                    # Support multiple image extensions
+                    for ext in [".png"]:
+                        possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
+                        if os.path.exists(possible_image_file):
+                            image_file = possible_image_file
+                            break
+
+                    if image_file is None:
+                        self.log(f"No matching image found for {yolo_file}")
+                        continue
+
+                    try:
+                        # Get image dimensions
+                        with Image.open(image_file) as img:
+                            width, height = img.size
+                    except Exception as e:
+                        self.log(f"Failed to get image size for {image_file}: {e}")
+                        continue
+
+                    # Add image metadata to COCO
+                    image_id = len(coco_data["images"]) + 1
+                    coco_data["images"].append({
+                        "id": image_id,
+                        "file_name": os.path.basename(image_file),
+                        "width": width,
+                        "height": height
+                    })
+
+                    # Process YOLO annotations
+                    with open(yolo_file, "r") as f:
+                        lines = f.readlines()
+
+                    for line in lines:
+                        data = line.strip().split()
+
+                        # Parse YOLO format data
+                        try:
+                            class_id, x_center, y_center, bbox_width, bbox_height = map(float, data)
+                        except ValueError as e:
+                            self.log(f"Invalid annotation in {yolo_file}: {line.strip()} - {e}")
+                            continue
+
+                        # Convert YOLO normalized coordinates to absolute COCO bbox format
+                        x_min = (x_center - bbox_width / 2) * width
+                        y_min = (y_center - bbox_height / 2) * height
+                        box_width = bbox_width * width
+                        box_height = bbox_height * height
+
+                        # Clamp bounding box values to image dimensions
+                        x_min = max(0, x_min)
+                        y_min = max(0, y_min)
+                        box_width = min(width - x_min, box_width)
+                        box_height = min(height - y_min, box_height)
+
+                        # Add annotation to COCO
+                        coco_data["annotations"].append({
+                            "id": annotation_id,
+                            "image_id": image_id,
+                            "category_id": int(class_id),
+                            "bbox": [x_min, y_min, box_width, box_height],
+                            "area": box_width * box_height,
+                            "iscrowd": 0
+                        })
+                        annotation_id += 1
+        output_json = "coco_annotations.json"
+        # create json file
+        output_path = os.path.join(yolo_dir, output_json)
+        # Save COCO JSON to file
+        with open(output_path, "w") as json_out:
+            json.dump(coco_data, json_out, indent=4)
+
+        self.log(f"COCO JSON file created at {output_json}")
+
     def yolo_to_voc(self, yolo_dir, class_mapping):
         yolo_dir = os.path.dirname(yolo_dir)
         for root, dirs, files in os.walk(yolo_dir):
@@ -720,7 +833,7 @@ class Yolo8AnnotationTool(QMainWindow):
                     image_file = None
 
                     # Support multiple image extensions
-                    for ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                    for ext in [".png"]:
                         possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
                         if os.path.exists(possible_image_file):
                             image_file = possible_image_file
