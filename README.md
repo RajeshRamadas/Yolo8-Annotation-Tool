@@ -81,18 +81,13 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
    git clone hhttps://github.com/RajeshRamadas/Yolo8-Annotation-Tool.git
    cd yolo8-annotation-tool
    cd 02-Implementation
-2. **Create and Activate a Virtual Environment (optional but recommended):**
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-
-3. **Install the Required Dependencies:**
+2. **Install the Required Dependencies:**
     ```bash
     cd install_script
     pip install -r requirements.txt
 
-4. **Run the Application:**
+3. **Run the Application:**
     ```bash
     # This will launch the Yolo8 Annotation Tool interface.
     python main.py
