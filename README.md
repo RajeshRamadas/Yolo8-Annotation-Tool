@@ -34,9 +34,14 @@ Additionally, there is an option to generate data in VOC XML format.
 - **COCO JSON**
 - **YOLO Annotation Format**
 
+### Addition feature
+- **PNG CONVERTER**: Any image format will be converted to png image with height and width given in GUI.(Tool supports only .png image format)
+- **TRAINING DATASET**: images are split for training dataset(Test, training, validation)
+
 ## Limitation
 
 - **Single Category Annotation**: This tool currently supports annotating images with only one category or class per project.
+- **Single image format support**: This tool currently supports only one images format(.png)
 
 ## Annotation format
 The YOLOv8 model annotation format typically consists of text files with the same name as the corresponding image file. Each line in the text file represents one object in the image and follows this structure:
