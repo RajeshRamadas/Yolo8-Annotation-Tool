@@ -10,7 +10,7 @@ Additionally, there is an option to generate data in VOC XML format.
 ### Image Loading and Display
 
 - **Load Images**: Load images from a folder or a specific image file.
-- **Image Settings**: Apply various settings such as width, height, rotation, brightness, and contrast to the images.
+- **Image Settings**: Apply various settings such as width, height, rotation, flip, color jitter, random crop,  brightness, and contrast to the images.
 
 ### Drawing and Managing Bounding Boxes
 
@@ -22,6 +22,7 @@ Additionally, there is an option to generate data in VOC XML format.
 - **Save/Load Annotations**: Save and load annotations in formats (e.g., txt).
 - **Delete Annotations**: Delete existing annotations.
 - **Validate Annotations**: Ensure the correctness of annotations and all files are annotated
+- **Validate Overlapping Annotations**: Check if bounding box are Overlapping 
 
 ### Dataset Management
 
