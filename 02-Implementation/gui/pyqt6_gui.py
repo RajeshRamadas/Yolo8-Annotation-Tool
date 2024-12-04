@@ -710,6 +710,7 @@ class Yolo8AnnotationTool(QMainWindow):
                 category_id: category_name
             }
             self.yolo_to_voc(txt_file_path, class_mapping)
+
     def yolo_to_voc(self, yolo_dir, class_mapping):
         yolo_dir = os.path.dirname(yolo_dir)
         for root, dirs, files in os.walk(yolo_dir):
@@ -717,33 +718,58 @@ class Yolo8AnnotationTool(QMainWindow):
                 if file.endswith(".txt"):
                     yolo_file = os.path.join(root, file)
                     image_file = None
-                    for ext in [".png"]:
+
+                    # Support multiple image extensions
+                    for ext in [".png", ".jpg", ".jpeg", ".bmp"]:
                         possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
                         if os.path.exists(possible_image_file):
                             image_file = possible_image_file
                             break
+
                     if image_file is None:
-                        continue  # Skip if no image is found
+                        self.log(f"No matching image found for {yolo_file}")
+                        continue
+
                     try:
                         width, height = self.get_image_size(image_file)
                     except Exception as e:
                         self.log(f"Failed to get image size for {image_file}: {e}")
-                        continue  # Skip if unable to read image size
+                        continue
+
                     with open(yolo_file, "r") as f:
                         lines = f.readlines()
+
                     annotation = ET.Element("annotation")
                     ET.SubElement(annotation, "filename").text = os.path.basename(image_file)
                     size = ET.SubElement(annotation, "size")
                     ET.SubElement(size, "width").text = str(width)
                     ET.SubElement(size, "height").text = str(height)
+
                     for line in lines:
                         data = line.strip().split()
-                        class_id, x_center, y_center, bbox_width, bbox_height = map(float, data)
-                        xmin = int((x_center - bbox_width / 2) * width)
-                        ymin = int((y_center - bbox_height / 2) * height)
-                        xmax = int((x_center + bbox_width / 2) * width)
-                        ymax = int((y_center + bbox_height / 2) * height)
+
+                        # Parse YOLO format data
+                        try:
+                            class_id, x_center, y_center, bbox_width, bbox_height = map(float, data)
+                        except ValueError as e:
+                            self.log(f"Invalid annotation in {yolo_file}: {line.strip()} - {e}")
+                            continue
+
+                        # Convert YOLO normalized coordinates to VOC absolute coordinates
+                        xmin = max(0, int((x_center - bbox_width / 2) * width))
+                        ymin = max(0, int((y_center - bbox_height / 2) * height))
+                        xmax = min(width, int((x_center + bbox_width / 2) * width))
+                        ymax = min(height, int((y_center + bbox_height / 2) * height))
+
+                        # Skip invalid bounding boxes
+                        if xmin >= xmax or ymin >= ymax:
+                            self.log(f"Invalid bounding box skipped: {xmin}, {ymin}, {xmax}, {ymax}")
+                            continue
+
+                        # Get class name from mapping
                         class_name = class_mapping.get(int(class_id), "unknown")
+
+                        # Create object annotation
                         obj = ET.SubElement(annotation, "object")
                         ET.SubElement(obj, "name").text = class_name
                         bndbox = ET.SubElement(obj, "bndbox")
@@ -751,11 +777,63 @@ class Yolo8AnnotationTool(QMainWindow):
                         ET.SubElement(bndbox, "ymin").text = str(ymin)
                         ET.SubElement(bndbox, "xmax").text = str(xmax)
                         ET.SubElement(bndbox, "ymax").text = str(ymax)
+
+                    # Save as VOC XML
                     voc_xml = ET.tostring(annotation, encoding="utf-8", method="xml")
                     voc_file = os.path.join(root, os.path.splitext(file)[0] + ".xml")
                     with open(voc_file, "wb") as xml_out:
                         xml_out.write(voc_xml)
+
                     self.log(f"Converted {yolo_file} to {voc_file}")
+
+    # def yolo_to_voc(self, yolo_dir, class_mapping):
+    #     yolo_dir = os.path.dirname(yolo_dir)
+    #     for root, dirs, files in os.walk(yolo_dir):
+    #         for file in files:
+    #             if file.endswith(".txt"):
+    #                 yolo_file = os.path.join(root, file)
+    #                 image_file = None
+    #                 for ext in [".png"]:
+    #                     possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
+    #                     if os.path.exists(possible_image_file):
+    #                         image_file = possible_image_file
+    #                         break
+    #                 if image_file is None:
+    #                     continue  # Skip if no image is found
+    #                 try:
+    #                     width, height = self.get_image_size(image_file)
+    #                 except Exception as e:
+    #                     self.log(f"Failed to get image size for {image_file}: {e}")
+    #                     continue  # Skip if unable to read image size
+    #                 with open(yolo_file, "r") as f:
+    #                     lines = f.readlines()
+    #                 annotation = ET.Element("annotation")
+    #                 ET.SubElement(annotation, "filename").text = os.path.basename(image_file)
+    #                 size = ET.SubElement(annotation, "size")
+    #                 ET.SubElement(size, "width").text = str(width)
+    #                 ET.SubElement(size, "height").text = str(height)
+    #                 for line in lines:
+    #                     data = line.strip().split()
+    #                     class_id, x_center, y_center, bbox_width, bbox_height = map(float, data)
+    #                     xmin = int((x_center - bbox_width / 2) * width)
+    #                     ymin = int((y_center - bbox_height / 2) * height)
+    #                     xmax = int((x_center + bbox_width / 2) * width)
+    #                     ymax = int((y_center + bbox_height / 2) * height)
+    #                     class_name = class_mapping.get(int(class_id), "unknown")
+    #                     obj = ET.SubElement(annotation, "object")
+    #                     ET.SubElement(obj, "name").text = class_name
+    #                     bndbox = ET.SubElement(obj, "bndbox")
+    #                     ET.SubElement(bndbox, "xmin").text = str(xmin)
+    #                     ET.SubElement(bndbox, "ymin").text = str(ymin)
+    #                     ET.SubElement(bndbox, "xmax").text = str(xmax)
+    #                     ET.SubElement(bndbox, "ymax").text = str(ymax)
+    #                 voc_xml = ET.tostring(annotation, encoding="utf-8", method="xml")
+    #                 voc_file = os.path.join(root, os.path.splitext(file)[0] + ".xml")
+    #                 with open(voc_file, "wb") as xml_out:
+    #                     xml_out.write(voc_xml)
+    #                 self.log(f"Converted {yolo_file} to {voc_file}")
+
+
     def get_image_size(self, image_path):
         try:
             with Image.open(image_path) as img:
