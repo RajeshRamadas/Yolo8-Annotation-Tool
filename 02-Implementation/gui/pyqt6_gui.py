@@ -121,8 +121,14 @@ class Yolo8AnnotationTool(QMainWindow):
     def __init__(self):
         super().__init__()
         self.annotation_x_label = None
-        self.setWindowTitle("Yolo8 Annotation Tool")
+        self.setWindowTitle("YOLO8 ANNOTATION TOOL")
         self.setGeometry(100, 100, 1000, 700)
+        # Set the window icon (path to the logo image)
+        # self.setWindowIcon(QIcon("../image/doc/logo.ico"))
+        try:
+            self.setWindowIcon(QIcon(QPixmap("logo.ico")))
+        except Exception as e:
+            print(f"Error setting window icon: {e}")
 
         # Initialize image list and index
         self.image_list = []
@@ -629,25 +635,25 @@ class Yolo8AnnotationTool(QMainWindow):
 
 
         # Add Folder Path Button
-        load_images_action = QAction("Load Images", self)
+        load_images_action = QAction("LOAD IMAGES", self)
         load_images_action.triggered.connect(self.load_images_annotation)
         toolbar.addAction(load_images_action)
 
         # Image png converter
-        png_converter_action = QAction("PNG Converter", self)
+        png_converter_action = QAction("PNG CONVERTER", self)
         png_converter_action.triggered.connect(self.png_converter)
         toolbar.addAction(png_converter_action)
 
-        convert_voc_annotations_action = QAction("VOC XML Format", self)
+        convert_voc_annotations_action = QAction("VOC XML FORMAT", self)
         convert_voc_annotations_action.triggered.connect(self.show_category_voc_input_dialog)
         toolbar.addAction(convert_voc_annotations_action)
 
-        convert_coco_annotations_action = QAction("COCO JSON Format", self)
+        convert_coco_annotations_action = QAction("COCO JSON FORMAT", self)
         convert_coco_annotations_action.triggered.connect(self.show_category_coco_input_dialog)
         toolbar.addAction(convert_coco_annotations_action)
 
         # Image Reload
-        dataset_spliter_action = QAction("Test Dataset Splitter", self)
+        dataset_spliter_action = QAction("TRAINING DATASET", self)
         dataset_spliter_action.triggered.connect(self.show_testing_dataset_input_dialog)
         toolbar.addAction(dataset_spliter_action)
 
