@@ -754,12 +754,22 @@ class Yolo8AnnotationTool(QMainWindow):
                     # Support multiple image extensions
                     for ext in [".png"]:
                         possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
+                        # check if testing data has been split
+                        # Normalize the path to handle different OS path separators
+                        normalized_path = os.path.normpath(possible_image_file)
+                        # Split the path into components
+                        path_components = normalized_path.split(os.sep)
+                        if path_components[-2] == 'labels':
+                            path_components[-2] = 'images'
+                            possible_image_file = os.path.join(*path_components)
+
                         if os.path.exists(possible_image_file):
                             image_file = possible_image_file
                             break
 
                     if image_file is None:
                         self.log(f"No matching image found for {yolo_file}")
+                        print(possible_image_file)
                         continue
 
                     try:
@@ -835,6 +845,16 @@ class Yolo8AnnotationTool(QMainWindow):
                     # Support multiple image extensions
                     for ext in [".png"]:
                         possible_image_file = os.path.join(root, os.path.splitext(file)[0] + ext)
+
+                        # check if testing data has been split
+                        # Normalize the path to handle different OS path separators
+                        normalized_path = os.path.normpath(possible_image_file)
+                        # Split the path into components
+                        path_components = normalized_path.split(os.sep)
+                        if path_components[-2] == 'labels':
+                            path_components[-2] = 'images'
+                            possible_image_file = os.path.join(*path_components)
+                        print(possible_image_file)
                         if os.path.exists(possible_image_file):
                             image_file = possible_image_file
                             break
