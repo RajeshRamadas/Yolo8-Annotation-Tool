@@ -80,6 +80,7 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
    ```bash
    git clone hhttps://github.com/RajeshRamadas/Yolo8-Annotation-Tool.git
    cd yolo8-annotation-tool
+   cd 02-Implementation
 2. **Create and Activate a Virtual Environment (optional but recommended):**
 
    ```bash
