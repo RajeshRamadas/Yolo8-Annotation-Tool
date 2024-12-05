@@ -7,6 +7,7 @@ import importlib.util
 import json
 import xmltodict
 from PIL import Image
+from pathlib import Path
 import random
 from typing import List, Tuple
 import xml.etree.ElementTree as ET
@@ -766,17 +767,19 @@ class Yolo8AnnotationTool(QMainWindow):
                         # Split the path into components
                         path_components = normalized_path.split(os.sep)
                         if path_components[-2] == 'labels':
-                            path_components[-2] = 'images'
-                            possible_image_file = os.path.join(*path_components)
-
+                            # Convert the string to a Path object
+                            possible_image_file = Path(possible_image_file)
+                            # Remove the last two components
+                            possible_image_file = possible_image_file.parent.parent
+                            possible_image_file = os.path.join(possible_image_file, 'images', path_components[-1])
                         if os.path.exists(possible_image_file):
                             image_file = possible_image_file
                             break
 
                     if image_file is None:
-                        self.log(f"No matching image found for {yolo_file}")
-                        print(possible_image_file)
-                        continue
+                            self.log(f"No matching image found for {yolo_file}")
+                            print(possible_image_file)
+                            continue
 
                     try:
                         # Get image dimensions
@@ -857,17 +860,20 @@ class Yolo8AnnotationTool(QMainWindow):
                         normalized_path = os.path.normpath(possible_image_file)
                         # Split the path into components
                         path_components = normalized_path.split(os.sep)
+                        #print(path_components)
                         if path_components[-2] == 'labels':
-                            path_components[-2] = 'images'
-                            possible_image_file = os.path.join(*path_components)
-                        print(possible_image_file)
+                            # Convert the string to a Path object
+                            possible_image_file = Path(possible_image_file)
+                            # Remove the last two components
+                            possible_image_file = possible_image_file.parent.parent
+                            possible_image_file = os.path.join(possible_image_file, 'images', path_components[-1])
                         if os.path.exists(possible_image_file):
                             image_file = possible_image_file
                             break
 
                     if image_file is None:
-                        self.log(f"No matching image found for {yolo_file}")
-                        continue
+                            self.log(f"No matching image found for {yolo_file}")
+                            continue
 
                     try:
                         width, height = self.get_image_size(image_file)
