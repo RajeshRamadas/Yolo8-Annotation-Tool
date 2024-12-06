@@ -1,9 +1,0 @@
-path: /content/converted_png3 #dataset root dir (absolute)
-train: images/train #train images (relative)
-val: images/test #val images (relative)
-
-# Input image size
-img_size: 640
-# Classes
-names:
-  0: alpaca

@@ -1,0 +1,12 @@
+# Dataset configuration for YOLOv8
+path: 'C:\Users\Desktop\sample_images\converted_png\test_dataset' # dataset root dir
+# Paths to the images and annotations (labels)
+train: ./train/images    # Path to training images
+val: ./val/images        # Path to validation images
+test: ./test/images      # Path to test images (optional)
+
+# Number of classes in your dataset
+nc: 1
+
+# List of class names
+names: ['alpaca']      # List of class names
