@@ -1,4 +1,0 @@
-numpy
-Pillow
-PyQt6
-xmltodict
