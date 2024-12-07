@@ -106,6 +106,7 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
     
     # This will launch the Yolo8 Annotation Tool interface using exe for windows machine .
     ./02-Implementation/exe/yolo8_annotation.exe
+
    
 ## Application 
 
