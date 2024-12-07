@@ -101,6 +101,12 @@ Before installing the Yolo8 Annotation Tool, make sure you have the following in
     ```bash
     # This will launch the Yolo8 Annotation Tool interface.
     python main.py
+
+    or
+    
+    # This will launch the Yolo8 Annotation Tool interface using exe for windows machine.
+    cd exe
+    yolo8_annotation.exe
    
 ## Application 
 
