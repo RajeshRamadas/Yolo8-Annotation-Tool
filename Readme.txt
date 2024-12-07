@@ -37,7 +37,6 @@
 		yolo8_annotation.exe
 
 
-
 3) GitHub: 
 
 	https://github.com/RajeshRamadas/Yolo8-Annotation-Tool/tree/main
